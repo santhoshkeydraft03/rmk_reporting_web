@@ -1,14 +1,29 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { Grid, Box, Card, Stack, Typography } from '@mui/material';
+import { useAuth } from '../../contexts/AuthContext';
 
 // components
 import PageContainer from 'src/components/container/PageContainer';
 import Logo from 'src/layouts/full/shared/logo/Logo';
 import AuthLogin from './auth/AuthLogin';
 
-const Login2 = () => {
-  
+const Login = () => {
+  const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // If user is already authenticated, redirect to dashboard
+    if (isAuthenticated) {
+      navigate('/app/dashboard', { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
+
+  // Only render login page if not authenticated
+  if (isAuthenticated) {
+    return null; // or a loading spinner if you prefer
+  }
+
   return (
     <PageContainer title="Login" description="this is Login page">
       <Box
@@ -74,4 +89,4 @@ const Login2 = () => {
   );
 };
 
-export default Login2;
+export default Login;

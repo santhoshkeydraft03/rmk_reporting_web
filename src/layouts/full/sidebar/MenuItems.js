@@ -19,7 +19,9 @@ import {
   IconUserPlus,
   IconMoodHappy,
   IconAperture,
-  IconReportAnalytics
+  IconReportAnalytics,
+  IconChartHistogram,
+  IconChartBar,
 } from '@tabler/icons-react';
 
 import { uniqueId } from 'lodash';
@@ -143,59 +145,15 @@ const Menuitems = [
   {
     id: uniqueId(),
     title: 'Bucket Wise Report',
-    icon: IconReportAnalytics,
+    icon: IconChartHistogram,
     href: '/app/reports/bucket-wise',
-  }
-
-
-  // {
-  //   navlabel: true,
-  //   subheader: 'Utilities',
-  // },
-  // {
-  //   id: uniqueId(),
-  //   title: 'Typography',
-  //   icon: IconLetterCase,
-  //   href: '/utilities/typography',
-  // },
-  // {
-  //   id: uniqueId(),
-  //   title: 'Shadow',
-  //   icon: IconShadow,
-  //   href: '/utilities/shadow',
-  // },
-  // {
-  //   navlabel: true,
-  //   subheader: 'Auth',
-  // },
-  // {
-  //   id: uniqueId(),
-  //   title: 'Login',
-  //   icon: IconLogin,
-  //   href: '/auth/login',
-  // },
-  // {
-  //   id: uniqueId(),
-  //   title: 'Register',
-  //   icon: IconUserPlus,
-  //   href: '/auth/register',
-  // },
-  // {
-  //   navlabel: true,
-  //   subheader: 'Extra',
-  // },
-  // {
-  //   id: uniqueId(),
-  //   title: 'Icons',
-  //   icon: IconMoodHappy,
-  //   href: '/app/icons',
-  // },
-  // {
-  //   id: uniqueId(),
-  //   title: 'Sample Page',
-  //   icon: IconAperture,
-  //   href: '/app/sample-page',
-  // },
+  },
+  {
+    id: uniqueId(),
+    title: 'Avg Sales Price',
+    icon: IconChartBar,
+    href: '/app/reports/avg-sales-price',
+  },
 ];
 
 export default Menuitems;

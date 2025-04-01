@@ -39,6 +39,7 @@ const InwardConsumptionSlurry = Loadable(lazy(() => import('../views/inputs/Inwa
 
 // Report Pages
 const BucketWiseReport = Loadable(lazy(() => import('../views/reports/BucketWiseReport')));
+const AvgSalesPrice = Loadable(lazy(() => import('../views/reports/AvgSalesPrice')));
 
 const Router = [
   {
@@ -86,6 +87,7 @@ const Router = [
 
       // Report routes
       { path: 'reports/bucket-wise', element: <BucketWiseReport /> },
+      { path: 'reports/avg-sales-price', element: <AvgSalesPrice /> },
 
       // Error pages
       { path: '404', element: <Error /> },
