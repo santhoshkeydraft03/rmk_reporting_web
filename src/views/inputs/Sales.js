@@ -252,6 +252,14 @@ const Sales = () => {
         year
       }));
 
+      const validationResult = validateSalesData(salesData);
+
+      if (!validationResult.isValid) {
+        showNotification(validationResult.errors.join('\n'), 'error');
+        setIsMonthLocked(true);
+        return;
+      }
+
       const response = await axiosInstance.post('/input/import-sales', salesData);
 
       if (response.status === 200) {
@@ -282,6 +290,48 @@ const Sales = () => {
     
     setPreviewData(reindexedData);
     setSelectedRows([]);
+  };
+
+  const validateSalesData = (dataToValidate) => {
+    const errors = [];
+
+    // Rule 1: Check for "Unbilled CASH" combinations
+    const unbilledCashEntries = dataToValidate.filter(
+      row => row.billingStatus === "Unbilled" && row.paymentType === "CASH"
+    );
+    if (unbilledCashEntries.length > 0) {
+      errors.push("Unbilled CASH entries are not allowed");
+    }
+
+    // Rule 2: Check for duplicate "Unbilled GST" entries with same product and quarry
+    const unbilledGSTEntries = dataToValidate.filter(
+      row => row.billingStatus === "Unbilled" && row.paymentType === "GST"
+    );
+    
+    const unbilledGSTCombinations = new Set();
+    unbilledGSTEntries.forEach(row => {
+      const key = `${row.productName}-${row.quarryName}-${row.billingStatus}-${row.paymentType}`;
+      if (unbilledGSTCombinations.has(key)) {
+        errors.push(`Duplicate Unbilled GST entry found for Product: ${row.productName}, Quarry: ${row.quarryName}`);
+      }
+      unbilledGSTCombinations.add(key);
+    });
+
+    // Rule 3: Check for duplicate "Billed" combinations
+    const billedEntries = dataToValidate.filter(row => row.billingStatus === "Billed");
+    const billedCombinations = new Set();
+    billedEntries.forEach(row => {
+      const key = `${row.productName}-${row.quarryName}-${row.billingStatus}-${row.paymentType}`;
+      if (billedCombinations.has(key)) {
+        errors.push(`Duplicate Billed entry found for Product: ${row.productName}, Quarry: ${row.quarryName}, Payment Type: ${row.paymentType}`);
+      }
+      billedCombinations.add(key);
+    });
+
+    return {
+      isValid: errors.length === 0,
+      errors
+    };
   };
 
   return (

@@ -154,6 +154,18 @@ const Menuitems = [
     icon: IconChartBar,
     href: '/app/reports/avg-sales-price',
   },
+  {
+    id: uniqueId(),
+    title: 'Production Report',
+    icon: IconChartBar,
+    href: '/app/reports/production-report',
+  },
+  {
+    id: uniqueId(),
+    title: 'Final Report',
+    icon: IconChartBar,
+    href: '/app/reports/final',
+  }
 ];
 
 export default Menuitems;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Card,
   CardContent,
@@ -18,16 +18,26 @@ import {
   IconButton,
   Tooltip,
   Alert,
-  InputLabel
+  InputLabel,
+  Grid
 } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 import { IconEdit, IconTrash, IconPlus } from '@tabler/icons-react';
 import PageContainer from '../../components/container/PageContainer';
 import axiosInstance from '../../utils/axios';
+import { AgGridReact } from 'ag-grid-react';
+import 'ag-grid-community/styles/ag-grid.css';
+import 'ag-grid-community/styles/ag-theme-alpine.css';
+import FileDownloadIcon from '@mui/icons-material/FileDownload';
+import FilterAltIcon from '@mui/icons-material/FilterAlt';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import SearchIcon from '@mui/icons-material/Search';
+import ReportGrid from '../../components/ReportGrid';
 
 const Ledger = () => {
   // States
   const [rows, setRows] = useState([]);
+  const [originalRows, setOriginalRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [openDialog, setOpenDialog] = useState(false);
   const [formData, setFormData] = useState({
@@ -42,72 +52,137 @@ const Ledger = () => {
   const [buckets, setBuckets] = useState([]);
   const [expenseTypes, setExpenseTypes] = useState([]);
   const [expenseGroups, setExpenseGroups] = useState([]);
+  const [filterData, setFilterData] = useState({
+    bucketId: '',
+    expenseTypeId: '',
+    status: '',
+    searchText: ''
+  });
 
-  const columns = [
+  const columnDefs = useMemo(() => [
     {
       field: 'serialNo',
       headerName: 'S.No',
       width: 70,
+      filter: true,
+      flex: 0.5,
+      cellStyle: { padding: '0 4px' }
     },
     {
       field: 'ledgerName',
       headerName: 'Ledger Name',
-      flex: 1,
-      minWidth: 150,
+      filter: 'agTextColumnFilter',
+      flex: 1.2,
+      cellStyle: { padding: '0 4px' }
     },
     {
       field: 'bucketName',
       headerName: 'Bucket Name',
+      filter: 'agTextColumnFilter',
       flex: 1,
-      minWidth: 150,
+      cellStyle: { padding: '0 4px' }
     },
     {
       field: 'expenseTypeName',
       headerName: 'Expense Type',
+      filter: 'agTextColumnFilter',
       flex: 1,
-      minWidth: 150,
+      cellStyle: { padding: '0 4px' }
     },
     {
       field: 'expenseGroupName',
       headerName: 'Expense Group',
+      filter: 'agTextColumnFilter',
       flex: 1,
-      minWidth: 150,
+      cellStyle: { padding: '0 4px' }
     },
     {
-      field: 'status',
       headerName: 'Status',
+      field: 'status',
       width: 100,
-      minWidth: 100,
+      cellRenderer: params => {
+        if (!params.value) return '';
+        return (
+          <Chip
+            label={params.value}
+            size="small"
+            color={params.value === 'Active' ? 'success' : 'error'}
+            sx={{ 
+              borderRadius: '6px',
+              height: '20px',
+              '& .MuiChip-label': {
+                padding: '0 6px',
+                fontSize: '0.75rem'
+              }
+            }}
+          />
+        );
+      },
+      cellStyle: { padding: '0 4px' }
     },
     {
       field: 'actions',
       headerName: 'Actions',
-      width: 120,
+      width: 90,
       sortable: false,
-      renderCell: (params) => (
-        <Box>
-          <Tooltip title="Edit">
+      filter: false,
+      cellRenderer: params => {
+        if (params.node.rowPinned) return '';
+        return (
+          <Box sx={{ display: 'flex', gap: '2px' }}>
             <IconButton 
-              onClick={() => handleEdit(params.row)}
+              onClick={() => handleEdit(params.data)}
               size="small"
-              sx={{ color: '#4D4D4D', mr: 1 }}
+              sx={{ 
+                padding: '2px',
+                color: '#4D4D4D'
+              }}
             >
-              <IconEdit size={18} />
+              <IconEdit size={16} />
             </IconButton>
-          </Tooltip>
-          <Tooltip title="Delete">
             <IconButton 
-              onClick={() => handleDelete(params.row.id)}
+              onClick={() => handleDelete(params.data.id)}
               size="small"
-              sx={{ color: '#4D4D4D' }}
+              sx={{ 
+                padding: '2px',
+                color: '#4D4D4D'
+              }}
             >
-              <IconTrash size={18} />
+              <IconTrash size={16} />
             </IconButton>
-          </Tooltip>
         </Box>
-      ),
-    },
-  ];
+        );
+      }
+    }
+  ], []);
+
+  const pinnedBottomRowData = useMemo(() => [{
+    serialNo: 'Total',
+    ledgerName: `${rows.length} Records`,
+    bucketName: '',
+    expenseTypeName: '',
+    expenseGroupName: '',
+    status: '',
+    actions: ''
+  }], [rows.length]);
+
+  const gridOptions = {
+    enableRangeSelection: true,
+    enableCellTextSelection: true,
+    groupDisplayType: 'multipleColumns',
+    groupDefaultExpanded: 1,
+    suppressScrollOnNewData: true,
+    suppressAnimationFrame: false,
+    rowHeight: 28,
+    headerHeight: 28,
+    suppressRowHoverHighlight: false,
+    suppressColumnVirtualisation: true,
+    defaultColDef: {
+      sortable: true,
+      resizable: true,
+      filter: true
+    }
+  };
 
   useEffect(() => {
     fetchBuckets();
@@ -152,11 +227,48 @@ const Ledger = () => {
     }
   };
 
+  const generateDummyData = () => {
+    const dummyData = [];
+    const bucketNames = ['Operations', 'Marketing', 'Sales', 'IT', 'HR', 'Finance', 'Admin', 'Legal'];
+    const expenseTypes = ['Travel', 'Office Supplies', 'Utilities', 'Rent', 'Salaries', 'Equipment', 'Training', 'Software'];
+    const expenseGroups = ['Domestic', 'International', 'Regular', 'One-time', 'Monthly', 'Quarterly', 'Annual', 'Project-based'];
+    
+    for (let i = 0; i < 100; i++) {
+      const bucketId = Math.floor(Math.random() * 8) + 1;
+      const expenseTypeId = Math.floor(Math.random() * 8) + 1;
+      const expenseGroupId = Math.floor(Math.random() * 8) + 1;
+      
+      dummyData.push({
+        ledgerId: i + 1,
+        ledgerName: `Ledger ${i + 1} - ${bucketNames[bucketId - 1]}`,
+        bucket: {
+          bucketId: bucketId,
+          bucketName: bucketNames[bucketId - 1]
+        },
+        expenseType: {
+          expenseTypeId: expenseTypeId,
+          expenseTypeName: expenseTypes[expenseTypeId - 1]
+        },
+        expenseGroup: {
+          expenseGroupId: expenseGroupId,
+          name: expenseGroups[expenseGroupId - 1]
+        },
+        status: Math.random() > 0.2 ? 'Active' : 'Inactive' // 80% Active, 20% Inactive
+      });
+    }
+    return dummyData;
+  };
+
   const fetchLedgers = async () => {
     setLoading(true);
     try {
-      const response = await axiosInstance.get('/master/ledger');
-      const transformedData = response.data.map((item, index) => ({
+      const params = new URLSearchParams();
+      if (filterData.bucketId) params.append('bucketId', filterData.bucketId);
+      if (filterData.expenseTypeId) params.append('expenseTypeId', filterData.expenseTypeId);
+      if (filterData.status) params.append('status', filterData.status);
+      
+      const response = await axiosInstance.get(`/master/ledger${params.toString() ? `?${params.toString()}` : ''}`);
+      const fetchedData = response.data.map((item, index) => ({
         id: item.ledgerId,
         serialNo: index + 1,
         ledgerName: item.ledgerName,
@@ -165,12 +277,72 @@ const Ledger = () => {
         expenseGroupName: item.expenseGroup?.name,
         status: item.status || 'Active'
       }));
-      setRows(transformedData);
+      setOriginalRows(fetchedData);
+      setRows(fetchedData);
     } catch (error) {
       setError(error.response?.data?.message || 'Failed to fetch ledgers');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleFilterChange = async (field, value) => {
+    const newFilterData = { ...filterData, [field]: value };
+    setFilterData(newFilterData);
+    
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (newFilterData.bucketId) params.append('bucketId', newFilterData.bucketId);
+      if (newFilterData.expenseTypeId) params.append('expenseTypeId', newFilterData.expenseTypeId);
+      if (newFilterData.status) params.append('status', newFilterData.status);
+      
+      const response = await axiosInstance.get(`/master/ledger${params.toString() ? `?${params.toString()}` : ''}`);
+      const filteredData = response.data.map((item, index) => ({
+        id: item.ledgerId,
+        serialNo: index + 1,
+        ledgerName: item.ledgerName,
+        bucketName: item.bucket?.bucketName,
+        expenseTypeName: item.expenseType?.expenseTypeName,
+        expenseGroupName: item.expenseGroup?.name,
+        status: item.status || 'Active'
+      }));
+      setOriginalRows(filteredData);
+      
+      // Apply current search if exists
+      if (newFilterData.searchText) {
+        const searchLower = newFilterData.searchText.toLowerCase();
+        const searchFiltered = filteredData.filter(row => 
+          Object.values(row).some(value => 
+            value && value.toString().toLowerCase().includes(searchLower)
+          )
+        );
+        setRows(searchFiltered);
+      } else {
+        setRows(filteredData);
+      }
+    } catch (error) {
+      setError(error.response?.data?.message || 'Failed to fetch ledgers');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSearchChange = (searchText) => {
+    setFilterData(prev => ({ ...prev, searchText }));
+    
+    if (!searchText.trim()) {
+      setRows(originalRows);
+      return;
+    }
+
+    const searchLower = searchText.toLowerCase();
+    const filteredData = originalRows.filter(row => 
+      Object.values(row).some(value => 
+        value && value.toString().toLowerCase().includes(searchLower)
+      )
+    );
+    setRows(filteredData);
   };
 
   const handleSubmit = async (e) => {
@@ -265,129 +437,193 @@ const Ledger = () => {
   };
 
   return (
-    <PageContainer title="Ledger" description="Manage ledgers">
-      <Card>
-        <CardContent sx={{ overflowX: 'hidden' }}>
-          {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
-            </Alert>
-          )}
-          <Stack direction="row" justifyContent="space-between" alignItems="center" mb={3}>
-            <Typography variant="h5" sx={{ color: '#4D4D4D' }}>Ledger</Typography>
+    <PageContainer title="Ledger Master" description="Manage ledger entries">
+      <Box sx={{ p: 0 }}>
+        <Stack 
+          direction="row" 
+          justifyContent="space-between" 
+          alignItems="center" 
+          sx={{ 
+            mb: 3,
+            '& .MuiButton-root': {
+              borderRadius: '8px',
+              textTransform: 'none',
+              fontWeight: 500,
+              px: 2,
+              py: 0.75,
+              fontSize: '0.875rem',
+              minWidth: '100px',
+              '& .MuiSvgIcon-root': {
+                fontSize: '1.25rem',
+              }
+            }
+          }}
+        >
+          <Stack direction="row" alignItems="center" spacing={2}>
+            <Typography variant="h5" sx={{ fontWeight: 600, color: 'text.primary', fontSize: '1.25rem' }}>
+              Ledger Master
+            </Typography>
+            
+          </Stack>
+          <Stack direction="row" spacing={2}>
+            <Button
+              size="medium"
+              variant="outlined"
+              startIcon={<FileDownloadIcon />}
+              sx={{ 
+                color: '#2a3547', 
+                borderColor: '#edf2f6',
+                '&:hover': {
+                  borderColor: '#5d87ff',
+                  bgcolor: 'rgba(93, 135, 255, 0.08)',
+                }
+              }}
+            >
+              Export
+            </Button>
             <Button
               variant="contained"
               startIcon={<IconPlus size={18} />}
               onClick={handleOpenDialog}
               sx={{
-                backgroundColor: '#5D87FF',
-                '&:hover': {
-                  backgroundColor: '#4570EA',
-                },
-                borderRadius: '8px',
-                textTransform: 'none',
-                px: 3
+                bgcolor: '#5d87ff',
+                '&:hover': { bgcolor: '#4570ea' },
+                boxShadow: 'none'
               }}
             >
               Add Ledger
             </Button>
           </Stack>
+        </Stack>
 
-          <Box sx={{ width: '100%', overflowX: 'auto' }}>
-            <DataGrid
-              rows={rows}
-              columns={columns}
-              initialState={{
-                pagination: {
-                  paginationModel: { pageSize: 10, page: 0 },
-                },
-              }}
-              pageSizeOptions={[5, 10, 20]}
-              disableColumnMenu
-              loading={loading}
-              autoHeight
-              sx={{
-                '& .MuiDataGrid-root': {
-                  borderRadius: '8px',
-                  border: '1px solid #E5E5E5',
-                },
-                '& .MuiDataGrid-cell': {
-                  borderRight: '1px solid #E5E5E5',
-                  borderBottom: '1px solid #E5E5E5',
-                  padding: '8px 12px',
-                  fontSize: '0.875rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  '&:focus, &:focus-within': {
-                    outline: 'none',
-                    border: '2px solid #5D87FF !important',
-                    borderRadius: '4px',
-                  },
-                  '&.Mui-selected, &.Mui-selected:hover': {
-                    backgroundColor: '#F8FAFF',
-                    border: '2px solid #5D87FF !important',
-                    borderRadius: '4px',
-                  },
-                  '&:last-child': {
-                    borderRight: 'none',
-                  }
-                },
-                '& .MuiDataGrid-columnHeaders': {
-                  backgroundColor: '#F8FAFF',
-                  borderBottom: '2px solid #E5E5E5',
-                  minHeight: '48px !important',
-                  '& .MuiDataGrid-columnHeader': {
-                    borderRight: '1px solid #E5E5E5',
-                    padding: '8px 12px',
-                    '&:last-child': {
-                      borderRight: 'none',
-                    },
-                    '&:focus': {
-                      outline: 'none',
-                    }
-                  },
-                  '& .MuiDataGrid-columnHeaderTitle': {
-                    fontWeight: 700,
-                    fontSize: '0.95rem',
-                    color: '#2B3674',
-                  }
-                },
-                '& .MuiDataGrid-row': {
-                  minHeight: '40px !important',
-                  '&:hover': {
-                    backgroundColor: '#F8FAFF',
-                  },
-                  '&.Mui-selected': {
-                    backgroundColor: 'transparent',
-                  }
-                },
-                '& .MuiDataGrid-virtualScroller': {
-                  backgroundColor: '#fff',
-                  marginTop: '0 !important',
-                },
-                '& .MuiDataGrid-footerContainer': {
-                  borderTop: '2px solid #E5E5E5',
-                  backgroundColor: '#F8FAFF',
-                  minHeight: '42px',
-                },
-                '& .MuiTablePagination-root': {
-                  color: '#2B3674',
-                  '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
-                    margin: 0,
-                  }
-                },
-                '& .MuiDataGrid-cell[data-field="serialNo"]': {
-                  paddingLeft: '16px',
-                },
-                border: '1px solid #E5E5E5',
-                borderRadius: '12px',
-                boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.05)',
-                '& .MuiDataGrid-main': {
-                  overflow: 'hidden'
-                },
-              }}
-            />
-          </Box>
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {error}
+          </Alert>
+        )}
+
+        {/* Filter Section */}
+        <Card 
+          sx={{ 
+            p: 2, 
+            mb: 2, 
+            borderRadius: '12px',
+            border: '1px solid #edf2f6',
+            boxShadow: 'none',
+          }}
+        >
+          <Grid container spacing={2} alignItems="center">
+            <Grid item xs={12} sm={12} md={3}>
+              <TextField
+                fullWidth
+                size="small"
+                placeholder="Search..."
+                value={filterData.searchText}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                InputProps={{
+                  startAdornment: (
+                    <SearchIcon sx={{ color: 'action.active', mr: 1 }} />
+                  ),
+                }}
+              />
+            </Grid>
+            <Grid item xs={12} sm={4} md={3}>
+              <FormControl fullWidth size="small">
+                <InputLabel>Bucket</InputLabel>
+                <Select
+                  value={filterData.bucketId}
+                  onChange={(e) => handleFilterChange('bucketId', e.target.value)}
+                  label="Bucket"
+                >
+                  <MenuItem value="">All Buckets</MenuItem>
+                  {buckets.map((bucket) => (
+                    <MenuItem key={bucket.bucketId} value={bucket.bucketId}>
+                      {bucket.bucketName}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={4} md={3}>
+              <FormControl fullWidth size="small">
+                <InputLabel>Expense Type</InputLabel>
+                <Select
+                  value={filterData.expenseTypeId}
+                  onChange={(e) => handleFilterChange('expenseTypeId', e.target.value)}
+                  label="Expense Type"
+                >
+                  <MenuItem value="">All Types</MenuItem>
+                  {expenseTypes.map((type) => (
+                    <MenuItem key={type.expenseTypeId} value={type.expenseTypeId}>
+                      {type.expenseTypeName}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={4} md={3}>
+              <FormControl fullWidth size="small">
+                <InputLabel>Status</InputLabel>
+                <Select
+                  value={filterData.status}
+                  onChange={(e) => handleFilterChange('status', e.target.value)}
+                  label="Status"
+                >
+                  <MenuItem value="">All Status</MenuItem>
+                  <MenuItem value="Active">Active</MenuItem>
+                  <MenuItem value="Inactive">Inactive</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+          </Grid>
+        </Card>
+
+        <Card 
+          sx={{ 
+            height: 'calc(100vh - 280px)',
+            minHeight: 500,
+            borderRadius: '12px',
+            border: '1px solid #edf2f6',
+            boxShadow: 'none',
+            overflow: 'hidden',
+            '& .ag-theme-alpine': {
+              border: 'none',
+              '& .ag-header': {
+                height: '28px',
+                minHeight: '28px',
+                borderBottom: '1px solid #e2e2e2',
+              },
+              '& .ag-header-cell': {
+                padding: '0 4px',
+                lineHeight: '28px',
+                backgroundColor: '#f8f9fa'
+              },
+              '& .ag-cell': {
+                lineHeight: '28px',
+                borderRight: '1px solid #e2e2e2',
+              },
+              '& .ag-row': {
+                borderBottom: '1px solid #e2e2e2',
+                height: '28px',
+                '&:hover': {
+                  backgroundColor: '#f5f5f5'
+                }
+              },
+              '& .ag-row-pinned': {
+                backgroundColor: '#f8f9fa',
+                fontWeight: 500
+              }
+            }
+          }}
+        >
+          <ReportGrid
+            columnDefs={columnDefs}
+            rowData={rows}
+            gridOptions={gridOptions}
+            height="100%"
+            pinnedBottomRowData={pinnedBottomRowData}
+          />
+        </Card>
 
           <Dialog 
             open={openDialog} 
@@ -513,8 +749,7 @@ const Ledger = () => {
               </DialogActions>
             </form>
           </Dialog>
-        </CardContent>
-      </Card>
+      </Box>
     </PageContainer>
   );
 };

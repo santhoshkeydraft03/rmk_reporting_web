@@ -39,7 +39,9 @@ const InwardConsumptionSlurry = Loadable(lazy(() => import('../views/inputs/Inwa
 
 // Report Pages
 const BucketWiseReport = Loadable(lazy(() => import('../views/reports/BucketWiseReport')));
-const AvgSalesPrice = Loadable(lazy(() => import('../views/reports/AvgSalesPrice')));
+const AvgSalesPrice = Loadable(lazy(() => import('../views/reports/AvgSalesPrice.js')));
+const Final = Loadable(lazy(() => import('../views/reports/AvgSalesPrice.jsx')));
+const ProductionReport = Loadable(lazy(() => import('../views/reports/ProductionReport.js')));
 
 const Router = [
   {
@@ -88,6 +90,8 @@ const Router = [
       // Report routes
       { path: 'reports/bucket-wise', element: <BucketWiseReport /> },
       { path: 'reports/avg-sales-price', element: <AvgSalesPrice /> },
+      { path: 'reports/production-report', element: <ProductionReport /> },
+      { path: 'reports/final', element: <Final /> },
 
       // Error pages
       { path: '404', element: <Error /> },

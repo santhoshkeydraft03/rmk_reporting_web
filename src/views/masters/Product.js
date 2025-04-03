@@ -409,9 +409,9 @@ const Product = () => {
                       onChange={(e) => setFormData({ ...formData, quarryId: e.target.value })}
                       label="Quarry"
                     >
-                      {Array.isArray(quarries) && quarries.map((quarry) => (
-                        <MenuItem key={quarry.id} value={quarry.id}>
-                          {quarry.name}
+                      {quarries.map((quarry) => (
+                        <MenuItem key={quarry.plantId} value={quarry.plantId.toString()}>
+                          {quarry.plantName}
                         </MenuItem>
                       ))}
                     </Select>
