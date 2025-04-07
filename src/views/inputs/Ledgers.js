@@ -1,26 +1,25 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Card,
-  CardContent,
   Typography,
   Box,
   Button,
   Stack,
-  MenuItem,
-  Select,
-  FormControl,
-  InputLabel,
+  TextField,
   Snackbar,
   Alert,
+  Grid,
+  InputAdornment
 } from '@mui/material';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import FileUploadIcon from '@mui/icons-material/FileUpload';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
+import SearchIcon from '@mui/icons-material/Search';
 import axiosInstance from '../../utils/axios';
 import PageContainer from '../../components/container/PageContainer';
-import { DataGrid } from '@mui/x-data-grid';
+import ReportGrid from '../../components/ReportGrid';
 import * as XLSX from 'xlsx';
 
 const Ledgers = () => {
@@ -34,50 +33,98 @@ const Ledgers = () => {
   const [ledgerData, setLedgerData] = useState([]);
   const [selectedDate, setSelectedDate] = useState(null);
   const [isMonthLocked, setIsMonthLocked] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: '',
     severity: 'info'
   });
 
-  const columns = [
-    { field: 'id', headerName: '#', width: 60 },
-    { 
-      field: 'listOfLedgers', 
-      headerName: 'List Of Ledgers', 
-      flex: 2,
-      renderCell: (params) => (
-        <div style={{ whiteSpace: 'pre-line' }}>
-          {params.value}
-        </div>
-      )
+  const columnDefs = useMemo(() => [
+    {
+      field: 'serialNo',
+      headerName: '#',
+      width: 70,
+      filter: true,
+      flex: 0.5,
+      cellStyle: { padding: '0 4px' }
     },
-    { 
-      field: 'amount', 
-      headerName: 'Amount', 
+    {
+      field: 'listOfLedgers',
+      headerName: 'List Of Ledgers',
+      filter: 'agTextColumnFilter',
+      flex: 2,
+      cellStyle: { padding: '0 4px' }
+    },
+    {
+      field: 'amount',
+      headerName: 'Amount',
+      filter: 'agNumberColumnFilter',
       flex: 1,
-      type: 'number',
-      renderCell: (params) => (
-        <div>
-          {params.value?.toLocaleString('en-IN') || ''}
-        </div>
-      )
+      type: 'numericColumn',
+      valueFormatter: params => params.value?.toLocaleString('en-IN') || '',
+      cellStyle: { padding: '0 4px', textAlign: 'right' }
     }
-  ];
+  ], []);
+
+  const gridOptions = {
+    enableRangeSelection: true,
+    enableCellTextSelection: true,
+    groupDisplayType: 'multipleColumns',
+    groupDefaultExpanded: 1,
+    suppressScrollOnNewData: true,
+    suppressAnimationFrame: false,
+    rowHeight: 28,
+    headerHeight: 28,
+    suppressRowHoverHighlight: false,
+    suppressColumnVirtualisation: true,
+    rowSelection: 'multiple',
+    defaultColDef: {
+      sortable: true,
+      resizable: true,
+      filter: true
+    }
+  };
+
+  const handleSearch = (event) => {
+    setSearchQuery(event.target.value);
+  };
+
+  const filteredLedgerData = useMemo(() => {
+    if (!searchQuery) return ledgerData;
+    
+    const query = searchQuery.toLowerCase();
+    return ledgerData.filter(row => 
+      row.listOfLedgers?.toLowerCase().includes(query) ||
+      String(row.amount).includes(query)
+    );
+  }, [ledgerData, searchQuery]);
+
+  const pinnedBottomRowData = useMemo(() => [{
+    serialNo: 'Total',
+    listOfLedgers: `${filteredLedgerData.length} Records`,
+    amount: filteredLedgerData.reduce((sum, row) => sum + (row.amount || 0), 0)
+  }], [filteredLedgerData]);
+
+  const previewPinnedBottomRowData = useMemo(() => previewData ? [{
+    serialNo: 'Total',
+    listOfLedgers: `${previewData.length} Records`,
+    amount: previewData.reduce((sum, row) => sum + (row.amount || 0), 0)
+  }] : [], [previewData]);
 
   const fetchLedgerData = async () => {
     try {
       setLoading(true);
       const response = await axiosInstance.get('/input/ledger-entries');
       const transformedData = response.data.map((ledger, index) => ({
-        id: index + 1,
+        id: ledger.ledgerId || index + 1,
+        serialNo: index + 1,
         listOfLedgers: ledger.ledgerName,
         amount: Number(ledger.amount)
       }));
       setLedgerData(transformedData);
     } catch (error) {
-      console.error('Error fetching ledger data:', error);
-      alert('Failed to fetch ledger data');
+      showNotification('Failed to fetch ledger data', 'error');
     } finally {
       setLoading(false);
     }
@@ -110,30 +157,28 @@ const Ledgers = () => {
           const range = XLSX.utils.decode_range(worksheet['!ref']);
           const data = [];
           
-          console.log('Excel range:', range);
-          
           for(let row = 2; row <= range.e.r + 1; row++) {
-            console.log('Row', row, {
-              A: worksheet[`A${row}`],
-              B: worksheet[`B${row}`]
-            });
-            
             const rowData = {
               id: row - 1,
+              serialNo: row - 1,
               listOfLedgers: worksheet[`A${row}`]?.v || '',
               amount: worksheet[`B${row}`]?.v || 0
             };
             
             if (rowData.listOfLedgers) {
-              console.log('Processed row:', rowData);
               data.push(rowData);
             }
           }
           
-          console.log('Final data:', data);
-          resolve(data);
+          // Reindex serial numbers after filtering empty rows
+          const reindexedData = data.map((row, index) => ({
+            ...row,
+            id: index + 1,
+            serialNo: index + 1
+          }));
+          
+          resolve(reindexedData);
         } catch (err) {
-          console.error('Excel parsing error:', err);
           reject(err);
         }
       };
@@ -277,7 +322,8 @@ const Ledgers = () => {
     const updatedData = previewData.filter(row => !selectedRows.includes(row.id));
     const reindexedData = updatedData.map((row, index) => ({
       ...row,
-      id: index + 1
+      id: index + 1,
+      serialNo: index + 1
     }));
     
     setPreviewData(reindexedData);
@@ -285,297 +331,387 @@ const Ledgers = () => {
   };
 
   return (
-    <PageContainer title="Ledgers" description="Manage ledgers">
-      <Card>
-        <CardContent>
-          {!showUploadSection ? (
-            <Box>
-              <Typography variant="h3" sx={{ color: '#2B3674', mb: 3 }}>
-                Ledgers
-              </Typography>
-
-              <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 3 }}>
-                <LocalizationProvider dateAdapter={AdapterDateFns}>
-                  <DatePicker
-                    label="From Date"
-                    value={fromDate}
-                    onChange={(newValue) => setFromDate(newValue)}
-                    slotProps={{ textField: { size: 'small' } }}
-                  />
-                  <DatePicker
-                    label="To Date"
-                    value={toDate}
-                    onChange={(newValue) => setToDate(newValue)}
-                    slotProps={{ textField: { size: 'small' } }}
-                  />
-                </LocalizationProvider>
-
+    <PageContainer title="Ledgers Input" description="Manage ledger data">
+      <Box sx={{ p: 0 }}>
+        {!showUploadSection ? (
+          <>
+            <Stack 
+              direction="row" 
+              justifyContent="space-between" 
+              alignItems="center" 
+              sx={{ 
+                mb: 3,
+                '& .MuiButton-root': {
+                  borderRadius: '8px',
+                  textTransform: 'none',
+                  fontWeight: 500,
+                  px: 2,
+                  py: 0.75,
+                  fontSize: '0.875rem',
+                  minWidth: '100px',
+                  '& .MuiSvgIcon-root': {
+                    fontSize: '1.25rem',
+                  }
+                }
+              }}
+            >
+              <Stack direction="row" alignItems="center" spacing={2}>
+                <Typography variant="h5" sx={{ fontWeight: 600, color: 'text.primary', fontSize: '1.25rem' }}>
+                  Ledgers Input
+                </Typography>
+              </Stack>
+              <Stack direction="row" spacing={2}>
+                <Button
+                  size="medium"
+                  variant="outlined"
+                  startIcon={<FileDownloadIcon />}
+                  sx={{ 
+                    color: '#2a3547', 
+                    borderColor: '#edf2f6',
+                    '&:hover': {
+                      borderColor: '#5d87ff',
+                      bgcolor: 'rgba(93, 135, 255, 0.08)',
+                    }
+                  }}
+                >
+                  Export
+                </Button>
                 <Button
                   variant="contained"
-                  color="primary"
-                >
-                  EXPORT
-                </Button>
-
-                <Button
-                  variant="outlined"
-                  color="primary"
                   startIcon={<FileUploadIcon />}
                   onClick={() => setShowUploadSection(true)}
+                  sx={{
+                    bgcolor: '#5d87ff',
+                    '&:hover': { bgcolor: '#4570ea' },
+                    boxShadow: 'none'
+                  }}
                 >
-                  IMPORT
+                  Import
                 </Button>
               </Stack>
+            </Stack>
 
-              <Box>
-                <DataGrid
-                  rows={ledgerData}
-                  columns={columns}
-                  pageSize={10}
-                  rowsPerPageOptions={[10, 25, 50]}
-                  checkboxSelection
-                  disableSelectionOnClick
-                  autoHeight
-                  loading={loading}
-                  sx={{
-                    '& .MuiDataGrid-columnHeaders': {
-                      backgroundColor: '#F8FAFF',
-                      borderBottom: '2px solid #E5E5E5',
-                      minHeight: '48px !important',
-                      '& .MuiDataGrid-columnHeader': {
-                        borderRight: '1px solid #E5E5E5',
-                        padding: '8px 12px',
-                        '&:last-child': {
-                          borderRight: 'none',
+            <Card 
+              sx={{ 
+                p: 2, 
+                mb: 2, 
+                borderRadius: '12px',
+                border: '1px solid #edf2f6',
+                boxShadow: 'none',
+              }}
+            >
+              <Grid container spacing={2} alignItems="center">
+                <Grid item xs={12} sm={12} md={8}>
+                  <Stack direction="row" spacing={2}>
+                    <LocalizationProvider dateAdapter={AdapterDateFns}>
+                      <DatePicker
+                        label="From Date"
+                        value={fromDate}
+                        onChange={(newValue) => setFromDate(newValue)}
+                        slotProps={{ textField: { size: 'small' } }}
+                      />
+                      <DatePicker
+                        label="To Date"
+                        value={toDate}
+                        onChange={(newValue) => setToDate(newValue)}
+                        slotProps={{ textField: { size: 'small' } }}
+                      />
+                    </LocalizationProvider>
+                  </Stack>
+                </Grid>
+                <Grid item xs={12} sm={12} md={4}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    placeholder="Search..."
+                    value={searchQuery}
+                    onChange={handleSearch}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <SearchIcon sx={{ color: 'text.secondary' }} />
+                        </InputAdornment>
+                      ),
+                    }}
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        '& fieldset': {
+                          borderColor: '#edf2f6',
                         },
-                        '&:focus': {
-                          outline: 'none',
-                        }
+                        '&:hover fieldset': {
+                          borderColor: '#5d87ff',
+                        },
                       },
-                      '& .MuiDataGrid-columnHeaderTitle': {
-                        fontWeight: 700,
-                        fontSize: '0.95rem',
-                        color: '#2B3674',
-                      }
-                    },
-                    '& .MuiDataGrid-row': {
-                      minHeight: '40px !important',
-                      '&:hover': {
-                        backgroundColor: '#F8FAFF',
-                      },
-                      '&.Mui-selected': {
-                        backgroundColor: 'transparent',
-                      }
-                    },
-                    '& .MuiDataGrid-virtualScroller': {
-                      backgroundColor: '#fff',
-                      marginTop: '0 !important',
-                    },
-                    '& .MuiDataGrid-footerContainer': {
-                      borderTop: '2px solid #E5E5E5',
-                      backgroundColor: '#F8FAFF',
-                      minHeight: '42px',
-                    },
-                    '& .MuiDataGrid-columnHeaderCheckbox': {
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      padding: '0 !important',
-                    },
-                    border: '1px solid #E5E5E5',
-                    borderRadius: '12px',
-                    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.05)',
-                  }}
-                />
-              </Box>
-            </Box>
-          ) : (
-            <Box>
-              <Typography variant="h3" sx={{ color: '#2B3674', mb: 3 }}>
+                    }}
+                  />
+                </Grid>
+              </Grid>
+            </Card>
+
+            <Card 
+              sx={{ 
+                height: 'calc(100vh - 280px)',
+                minHeight: 500,
+                borderRadius: '12px',
+                border: '1px solid #edf2f6',
+                boxShadow: 'none',
+                overflow: 'hidden',
+                '& .ag-theme-alpine': {
+                  border: 'none',
+                  '& .ag-header': {
+                    height: '28px',
+                    minHeight: '28px',
+                    borderBottom: '1px solid #e2e2e2',
+                  },
+                  '& .ag-header-cell': {
+                    padding: '0 4px',
+                    lineHeight: '28px',
+                    backgroundColor: '#f8f9fa'
+                  },
+                  '& .ag-cell': {
+                    lineHeight: '28px',
+                    borderRight: '1px solid #e2e2e2',
+                  },
+                  '& .ag-row': {
+                    borderBottom: '1px solid #e2e2e2',
+                    height: '28px',
+                    '&:hover': {
+                      backgroundColor: '#f5f5f5'
+                    }
+                  },
+                  '& .ag-row-pinned': {
+                    backgroundColor: '#f8f9fa',
+                    fontWeight: 500
+                  }
+                }
+              }}
+            >
+              <ReportGrid
+                columnDefs={columnDefs}
+                rowData={filteredLedgerData}
+                gridOptions={gridOptions}
+                height="100%"
+                pinnedBottomRowData={pinnedBottomRowData}
+              />
+            </Card>
+          </>
+        ) : (
+          <Box>
+            <Stack 
+              direction="row" 
+              justifyContent="space-between" 
+              alignItems="center" 
+              sx={{ 
+                mb: 3,
+                '& .MuiButton-root': {
+                  borderRadius: '8px',
+                  textTransform: 'none',
+                  fontWeight: 500,
+                  px: 2,
+                  py: 0.75,
+                  fontSize: '0.875rem'
+                }
+              }}
+            >
+              <Typography variant="h5" sx={{ fontWeight: 600, color: 'text.primary', fontSize: '1.25rem' }}>
                 Ledger File Upload
               </Typography>
+            </Stack>
 
-              {!selectedFile ? (
-                <Box sx={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  minHeight: '400px',
-                  justifyContent: 'center'
-                }}>
-                  <input
-                    accept=".xlsx,.xls"
-                    style={{ display: 'none' }}
-                    id="file-upload"
-                    type="file"
-                    onChange={handleFileSelect}
-                  />
-                  <label htmlFor="file-upload">
-                    <Button
-                      component="span"
-                      variant="contained"
-                      color="primary"
-                      sx={{ minWidth: '150px' }}
-                    >
-                      CHOOSE FILE
-                    </Button>
-                  </label>
-                </Box>
-              ) : !previewData ? (
-                <Box sx={{ textAlign: 'center' }}>
-                  <Typography sx={{ mb: 3 }}>
-                    File Name: {selectedFile.name}
-                  </Typography>
-                  <Stack direction="row" spacing={2} justifyContent="center">
-                    <Button
-                      variant="contained"
-                      onClick={handlePreview}
-                      color="primary"
-                    >
-                      PREVIEW
-                    </Button>
-                    <Button
-                      variant="outlined"
-                      onClick={handleDiscard}
-                    >
-                      DISCARD
-                    </Button>
-                  </Stack>
-                </Box>
-              ) : (
-                <>
-                  <Box sx={{ mb: 3, display: 'flex', flexDirection: 'column' }}>
-                    <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 3 }}>
-                      <LocalizationProvider dateAdapter={AdapterDateFns}>
-                        <DatePicker
-                          label="Month and Year"
-                          value={selectedDate}
-                          onChange={handleDateChange}
-                          slotProps={{ textField: { size: 'small' } }}
-                          views={['month', 'year']}
-                          openTo="month"
-                        />
-                      </LocalizationProvider>
-                      
-                      {!selectedDate && (
-                        <Typography 
-                          variant="caption" 
-                          color="error.main"
-                          sx={{ 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            ml: 1 
-                          }}
-                        >
-                          * Please select month and year
-                        </Typography>
-                      )}
-                    </Stack>
-                  </Box>
-
-                  <Box sx={{ height: 400, width: '100%', mb: 3 }}>
-                    <DataGrid
-                      rows={previewData}
-                      columns={columns}
-                      pageSize={5}
-                      rowsPerPageOptions={[5, 10, 20]}
-                      checkboxSelection
-                      disableSelectionOnClick
-                      onSelectionModelChange={(newSelection) => {
-                        setSelectedRows(newSelection);
-                      }}
-                      selectionModel={selectedRows}
-                      sx={{
-                        '& .MuiDataGrid-columnHeaders': {
-                          backgroundColor: '#F8FAFF',
-                          borderBottom: '2px solid #E5E5E5',
-                          minHeight: '48px !important',
-                          '& .MuiDataGrid-columnHeader': {
-                            borderRight: '1px solid #E5E5E5',
-                            padding: '8px 12px',
-                            '&:last-child': {
-                              borderRight: 'none',
-                            },
-                            '&:focus': {
-                              outline: 'none',
-                            }
-                          },
-                          '& .MuiDataGrid-columnHeaderTitle': {
-                            fontWeight: 700,
-                            fontSize: '0.95rem',
-                            color: '#2B3674',
-                          }
-                        },
-                        '& .MuiDataGrid-row': {
-                          minHeight: '40px !important',
-                          '&:hover': {
-                            backgroundColor: '#F8FAFF',
-                          },
-                          '&.Mui-selected': {
-                            backgroundColor: 'transparent',
-                          }
-                        },
-                        '& .MuiDataGrid-virtualScroller': {
-                          backgroundColor: '#fff',
-                          marginTop: '0 !important',
-                        },
-                        '& .MuiDataGrid-footerContainer': {
-                          borderTop: '2px solid #E5E5E5',
-                          backgroundColor: '#F8FAFF',
-                          minHeight: '42px',
-                        },
-                        '& .MuiDataGrid-columnHeaderCheckbox': {
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          padding: '0 !important',
-                        },
-                        border: '1px solid #E5E5E5',
-                        borderRadius: '12px',
-                        boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.05)',
-                      }}
-                    />
-                  </Box>
-                  
-                  <Stack 
-                    direction="row" 
-                    spacing={2} 
-                    justifyContent="center"
-                    sx={{ mt: 2 }}
+            {!selectedFile ? (
+              <Box sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                minHeight: '400px',
+                justifyContent: 'center'
+              }}>
+                <input
+                  accept=".xlsx,.xls"
+                  style={{ display: 'none' }}
+                  id="file-upload"
+                  type="file"
+                  onChange={handleFileSelect}
+                />
+                <label htmlFor="file-upload">
+                  <Button
+                    component="span"
+                    variant="contained"
+                    sx={{
+                      minWidth: '150px',
+                      bgcolor: '#5d87ff',
+                      '&:hover': { bgcolor: '#4570ea' },
+                      boxShadow: 'none'
+                    }}
                   >
-                    <Button
-                      variant="contained"
-                      onClick={handleSubmit}
-                      disabled={loading || !selectedDate}
-                      color="primary"
-                    >
-                      SUBMIT
-                    </Button>
-
-                    <Button
-                      variant="contained"
-                      onClick={handleDeleteSelected}
-                      disabled={selectedRows.length === 0 || loading}
-                      color="warning"
-                    >
-                      DELETE SELECTED ({selectedRows.length})
-                    </Button>
-
-                    <Button
-                      variant="outlined"
-                      onClick={handleDiscard}
-                      disabled={loading}
-                      color="primary"
-                    >
-                      DISCARD
-                    </Button>
+                    CHOOSE FILE
+                  </Button>
+                </label>
+              </Box>
+            ) : !previewData ? (
+              <Box sx={{ textAlign: 'center' }}>
+                <Typography sx={{ mb: 3 }}>
+                  File Name: {selectedFile.name}
+                </Typography>
+                <Stack direction="row" spacing={2} justifyContent="center">
+                  <Button
+                    variant="contained"
+                    onClick={handlePreview}
+                    sx={{
+                      bgcolor: '#5d87ff',
+                      '&:hover': { bgcolor: '#4570ea' },
+                      boxShadow: 'none'
+                    }}
+                  >
+                    PREVIEW
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    onClick={handleDiscard}
+                    sx={{
+                      color: '#5D87FF',
+                      borderColor: '#5D87FF',
+                      '&:hover': {
+                        borderColor: '#4570EA',
+                      }
+                    }}
+                  >
+                    DISCARD
+                  </Button>
+                </Stack>
+              </Box>
+            ) : (
+              <>
+                <Box sx={{ mb: 3 }}>
+                  <Stack direction="row" spacing={2} alignItems="center">
+                    <LocalizationProvider dateAdapter={AdapterDateFns}>
+                      <DatePicker
+                        label="Month and Year"
+                        value={selectedDate}
+                        onChange={handleDateChange}
+                        slotProps={{ textField: { size: 'small' } }}
+                        views={['month', 'year']}
+                        openTo="month"
+                      />
+                    </LocalizationProvider>
+                    
+                    {!selectedDate && (
+                      <Typography 
+                        variant="caption" 
+                        color="error.main"
+                        sx={{ 
+                          display: 'flex', 
+                          alignItems: 'center'
+                        }}
+                      >
+                        * Please select month and year
+                      </Typography>
+                    )}
                   </Stack>
-                </>
-              )}
-            </Box>
-          )}
-        </CardContent>
-      </Card>
+                </Box>
+
+                <Card 
+                  sx={{ 
+                    height: 400,
+                    borderRadius: '12px',
+                    border: '1px solid #edf2f6',
+                    boxShadow: 'none',
+                    overflow: 'hidden',
+                    mb: 3,
+                    '& .ag-theme-alpine': {
+                      border: 'none',
+                      '& .ag-header': {
+                        height: '28px',
+                        minHeight: '28px',
+                        borderBottom: '1px solid #e2e2e2',
+                      },
+                      '& .ag-header-cell': {
+                        padding: '0 4px',
+                        lineHeight: '28px',
+                        backgroundColor: '#f8f9fa'
+                      },
+                      '& .ag-cell': {
+                        lineHeight: '28px',
+                        borderRight: '1px solid #e2e2e2',
+                      },
+                      '& .ag-row': {
+                        borderBottom: '1px solid #e2e2e2',
+                        height: '28px',
+                        '&:hover': {
+                          backgroundColor: '#f5f5f5'
+                        }
+                      },
+                      '& .ag-row-pinned': {
+                        backgroundColor: '#f8f9fa',
+                        fontWeight: 500
+                      }
+                    }
+                  }}
+                >
+                  <ReportGrid
+                    columnDefs={columnDefs}
+                    rowData={previewData}
+                    gridOptions={gridOptions}
+                    height="100%"
+                    pinnedBottomRowData={previewPinnedBottomRowData}
+                    onSelectionChanged={(event) => {
+                      const selectedNodes = event.api.getSelectedNodes();
+                      const selectedIds = selectedNodes.map(node => node.data.id);
+                      setSelectedRows(selectedIds);
+                    }}
+                  />
+                </Card>
+                
+                <Stack 
+                  direction="row" 
+                  spacing={2} 
+                  justifyContent="center"
+                >
+                  <Button
+                    variant="contained"
+                    onClick={handleSubmit}
+                    disabled={loading || !selectedDate}
+                    sx={{
+                      bgcolor: '#5d87ff',
+                      '&:hover': { bgcolor: '#4570ea' },
+                      boxShadow: 'none'
+                    }}
+                  >
+                    SUBMIT
+                  </Button>
+
+                  <Button
+                    variant="contained"
+                    onClick={handleDeleteSelected}
+                    disabled={selectedRows.length === 0 || loading}
+                    color="warning"
+                    sx={{
+                      boxShadow: 'none'
+                    }}
+                  >
+                    DELETE SELECTED ({selectedRows.length})
+                  </Button>
+
+                  <Button
+                    variant="outlined"
+                    onClick={handleDiscard}
+                    disabled={loading}
+                    sx={{
+                      color: '#5D87FF',
+                      borderColor: '#5D87FF',
+                      '&:hover': {
+                        borderColor: '#4570EA',
+                      }
+                    }}
+                  >
+                    DISCARD
+                  </Button>
+                </Stack>
+              </>
+            )}
+          </Box>
+        )}
+      </Box>
       <Snackbar 
         open={snackbar.open} 
         autoHideDuration={6000} 

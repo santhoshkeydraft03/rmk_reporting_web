@@ -67,8 +67,23 @@ const ProductionReport = () => {
       )
     }] : []),
     { 
-      field: 'particular', 
-      headerName: 'Particulars', 
+      field: 'productName', 
+      headerName: 'Product', 
+      flex: 1,
+      renderCell: (params) => (
+        <Box sx={{ 
+          width: '100%',
+          height: '100%',
+          p: 1,
+          bgcolor: '#FFCCFF'
+        }}>
+          {params.value}
+        </Box>
+      )
+    },
+    { 
+      field: 'quarryName', 
+      headerName: 'Quarry', 
       flex: 1,
       renderCell: (params) => (
         <Box sx={{ 
@@ -82,8 +97,8 @@ const ProductionReport = () => {
       )
     },
     {
-      field: 'tonnage',
-      headerName: 'Tonnage (MT)',
+      field: 'openingStock',
+      headerName: 'Opening Stock',
       flex: 1,
       align: 'right',
       renderCell: (params) => (
@@ -94,10 +109,70 @@ const ProductionReport = () => {
           textAlign: 'right',
           bgcolor: '#FFCCFF'
         }}>
-          {params.value ? params.value.toLocaleString('en-IN', {
+          {params.value?.toLocaleString('en-IN', {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,
-          }) : '-'}
+          })}
+        </Box>
+      )
+    },
+    {
+      field: 'production',
+      headerName: 'Production',
+      flex: 1,
+      align: 'right',
+      renderCell: (params) => (
+        <Box sx={{ 
+          width: '100%',
+          height: '100%',
+          p: 1,
+          textAlign: 'right',
+          bgcolor: '#FFCCFF'
+        }}>
+          {params.value?.toLocaleString('en-IN', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          })}
+        </Box>
+      )
+    },
+    {
+      field: 'salesTonnage',
+      headerName: 'Sales',
+      flex: 1,
+      align: 'right',
+      renderCell: (params) => (
+        <Box sx={{ 
+          width: '100%',
+          height: '100%',
+          p: 1,
+          textAlign: 'right',
+          bgcolor: '#FFCCFF'
+        }}>
+          {params.value?.toLocaleString('en-IN', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          })}
+        </Box>
+      )
+    },
+    {
+      field: 'closingStock',
+      headerName: 'Closing Stock',
+      flex: 1,
+      align: 'right',
+      renderCell: (params) => (
+        <Box sx={{ 
+          width: '100%',
+          height: '100%',
+          p: 1,
+          textAlign: 'right',
+          bgcolor: '#FFCCFF'
+        }}>
+          {params.value?.toLocaleString('en-IN', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          })}
         </Box>
       )
     }
@@ -114,7 +189,7 @@ const ProductionReport = () => {
       const month = (date.getMonth() + 1).toString().padStart(2, '0');
       const year = date.getFullYear().toString();
 
-      const response = await axiosInstance.get('/reports/production', {
+      const response = await axiosInstance.get('/reports/production-report', {
         params: {
           plantId: plantId,
           month: month,
@@ -125,8 +200,12 @@ const ProductionReport = () => {
       const transformedData = response.data.map((item, index) => ({
         id: index + 1,
         plantName: item.plantName,
-        particular: item.particulars,
-        tonnage: Number(item.tonnage)
+        productName: item.productName,
+        quarryName: item.quarryName,
+        openingStock: item.openingStock,
+        production: item.production,
+        salesTonnage: item.salesTonnage,
+        closingStock: item.closingStock
       }));
       
       setRows(transformedData);
@@ -149,8 +228,12 @@ const ProductionReport = () => {
     try {
       const worksheet = XLSX.utils.json_to_sheet(rows.map(row => ({
         'Plant': row.plantName || '',
-        'Particulars': row.particular,
-        'Tonnage (MT)': row.tonnage
+        'Product': row.productName,
+        'Quarry': row.quarryName,
+        'Opening Stock': row.openingStock,
+        'Production': row.production,
+        'Sales': row.salesTonnage,
+        'Closing Stock': row.closingStock
       })));
 
       const workbook = XLSX.utils.book_new();
@@ -265,15 +348,50 @@ const ProductionReport = () => {
                     fontWeight: 'bold',
                     borderRight: '1px solid #0070C0'
                   }}>
-                    Particulars
+                    Product
+                  </Box>
+                  <Box sx={{ 
+                    flex: 1,
+                    p: 1.5, 
+                    fontWeight: 'bold',
+                    borderRight: '1px solid #0070C0'
+                  }}>
+                    Quarry
+                  </Box>
+                  <Box sx={{ 
+                    flex: 1,
+                    p: 1.5, 
+                    fontWeight: 'bold',
+                    borderRight: '1px solid #0070C0',
+                    textAlign: 'right'
+                  }}>
+                    Opening Stock
+                  </Box>
+                  <Box sx={{ 
+                    flex: 1,
+                    p: 1.5, 
+                    fontWeight: 'bold',
+                    borderRight: '1px solid #0070C0',
+                    textAlign: 'right'
+                  }}>
+                    Production
+                  </Box>
+                  <Box sx={{ 
+                    flex: 1,
+                    p: 1.5, 
+                    fontWeight: 'bold',
+                    borderRight: '1px solid #0070C0',
+                    textAlign: 'right'
+                  }}>
+                    Sales
                   </Box>
                   <Box sx={{ 
                     flex: 1,
                     p: 1.5,
-                    textAlign: 'center',
+                    textAlign: 'right',
                     fontWeight: 'bold'
                   }}>
-                    {selectedDate ? selectedDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : 'N/A'}
+                    Closing Stock
                   </Box>
                 </Box>
 

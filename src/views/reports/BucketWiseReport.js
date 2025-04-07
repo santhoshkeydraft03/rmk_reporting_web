@@ -15,7 +15,9 @@ import {
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
-import { DataGrid } from '@mui/x-data-grid';
+import { AgGridReact } from 'ag-grid-react';
+import 'ag-grid-community/styles/ag-grid.css';
+import 'ag-grid-community/styles/ag-theme-alpine.css';
 import PageContainer from '../../components/container/PageContainer';
 import axios from '../../utils/axios';
 
@@ -25,7 +27,7 @@ const BucketWiseReport = () => {
   const [loading, setLoading] = useState(false);
   const [reportData, setReportData] = useState(null);
   const [buckets, setBuckets] = useState([]);
-  const [rows, setRows] = useState([]);
+  const [rowData, setRowData] = useState([]);
 
   // Fetch buckets on component mount
   useEffect(() => {
@@ -44,10 +46,10 @@ const BucketWiseReport = () => {
     fetchBuckets();
   }, []);
 
-  // Process report data into rows for DataGrid
+  // Process report data into rows for AG Grid
   useEffect(() => {
     if (!reportData || !reportData.expenseTypes) {
-      setRows([]);
+      setRowData([]);
       return;
     }
 
@@ -56,7 +58,7 @@ const BucketWiseReport = () => {
       let rowId = 1;
 
       // Process expense types and their groups
-      reportData.expenseTypes.forEach((expenseType, typeIndex) => {
+      reportData.expenseTypes.forEach((expenseType) => {
         // Add expense type header row
         gridRows.push({
           id: rowId++,
@@ -68,7 +70,7 @@ const BucketWiseReport = () => {
 
         // Add expense groups
         if (expenseType.expenseGroups && Array.isArray(expenseType.expenseGroups)) {
-          expenseType.expenseGroups.forEach((group, groupIndex) => {
+          expenseType.expenseGroups.forEach((group) => {
             gridRows.push({
               id: rowId++,
               isHeader: false,
@@ -89,10 +91,10 @@ const BucketWiseReport = () => {
         perMT: ''
       });
 
-      setRows(gridRows);
+      setRowData(gridRows);
     } catch (error) {
       console.error('Error processing report data:', error);
-      setRows([]);
+      setRowData([]);
     }
   }, [reportData]);
 
@@ -105,11 +107,9 @@ const BucketWiseReport = () => {
     setLoading(true);
     
     try {
-      // Extract month and year separately
       const month = selectedDate ? String(selectedDate.getMonth() + 1).padStart(2, '0') : '';
       const year = selectedDate ? String(selectedDate.getFullYear()) : '';
       
-      // Make API call to fetch report data
       const response = await axios.get('/reports/bucket-wise-report', {
         params: {
           bucketId: selectedBucket,
@@ -118,10 +118,7 @@ const BucketWiseReport = () => {
         }
       });
       
-      // Log the response data
       console.log('Bucket-wise report API response:', response.data);
-      
-      // Update state with the response data
       setReportData(response.data);
     } catch (error) {
       console.error('Error fetching report data:', error);
@@ -132,72 +129,127 @@ const BucketWiseReport = () => {
     }
   };
 
-  // Format number with commas for Indian locale (e.g., 1,234,567)
+  // Format number with commas for Indian locale
   const formatNumber = (value) => {
     if (value === null || value === undefined) return '-';
     return value.toLocaleString('en-IN');
   };
 
-  // Define columns for the DataGrid
-  const columns = [
+  const columnDefs = [
     { 
-      field: 'particular', 
-      headerName: 'Particulars', 
+      field: 'particular',
+      headerName: 'Particulars',
       flex: 3,
-      renderCell: (params) => (
-        <Box sx={{ 
-          fontWeight: params.row.isHeader || params.row.isTotal ? 'bold' : 'normal',
-          width: '100%',
-          height: '100%',
-          p: 1,
-          bgcolor: params.row.isHeader ? '#FFFFFF' : '#FFCCFF'
-        }}>
-          {params.value}
-        </Box>
-      )
+      cellStyle: params => {
+        const style = {
+          display: 'flex',
+          alignItems: 'center',
+          padding: '0 8px',
+          height: '28px',
+          lineHeight: '28px'
+        };
+        
+        if (params.data.isHeader) {
+          return {
+            ...style,
+            fontWeight: 'bold',
+            backgroundColor: '#FFFFFF'
+          };
+        } else if (params.data.isTotal) {
+          return {
+            ...style,
+            fontWeight: 'bold'
+          };
+        }
+        return {
+          ...style,
+          backgroundColor: '#FFCCFF'
+        };
+      }
     },
     {
       field: 'total',
       headerName: 'Total',
       flex: 1,
-      align: 'right',
-      renderCell: (params) => (
-        <Box sx={{ 
-          fontWeight: params.row.isHeader || params.row.isTotal ? 'bold' : 'normal',
-          color: params.row.isTotal ? '#0000FF' : 'inherit',
-          width: '100%',
-          height: '100%',
-          p: 1,
+      cellStyle: params => {
+        const style = {
           textAlign: 'right',
-          bgcolor: params.row.isHeader ? '#FFFFFF' : '#FFCCFF'
-        }}>
-          {params.value !== null && params.value !== undefined && params.value !== '' 
-            ? formatNumber(params.value) 
-            : ''}
-        </Box>
-      )
+          padding: '0 8px',
+          height: '28px',
+          lineHeight: '28px'
+        };
+        
+        if (params.data.isHeader) {
+          return {
+            ...style,
+            fontWeight: 'bold',
+            backgroundColor: '#FFFFFF'
+          };
+        } else if (params.data.isTotal) {
+          return {
+            ...style,
+            fontWeight: 'bold',
+            color: '#0000FF'
+          };
+        }
+        return {
+          ...style,
+          backgroundColor: '#FFCCFF'
+        };
+      },
+      valueFormatter: params => {
+        if (params.value !== null && params.value !== undefined && params.value !== '') {
+          return formatNumber(params.value);
+        }
+        return '';
+      }
     },
     {
       field: 'perMT',
       headerName: 'Per MT',
       flex: 1,
-      align: 'center',
-      renderCell: (params) => (
-        <Box sx={{ 
-          fontWeight: params.row.isHeader || params.row.isTotal ? 'bold' : 'normal',
-          width: '100%',
-          height: '100%',
-          p: 1,
+      cellStyle: params => {
+        const style = {
           textAlign: 'center',
-          bgcolor: params.row.isHeader ? '#FFFFFF' : '#FFCCFF'
-        }}>
-          {params.value || ''}
-        </Box>
-      )
+          padding: '0 8px',
+          height: '28px',
+          lineHeight: '28px'
+        };
+        
+        if (params.data.isHeader) {
+          return {
+            ...style,
+            fontWeight: 'bold',
+            backgroundColor: '#FFFFFF'
+          };
+        } else if (params.data.isTotal) {
+          return {
+            ...style,
+            fontWeight: 'bold'
+          };
+        }
+        return {
+          ...style,
+          backgroundColor: '#FFCCFF'
+        };
+      }
     }
   ];
 
-  // Custom header component that matches your Table header exactly
+  const defaultColDef = {
+    sortable: false,
+    resizable: true,
+    suppressMovable: true
+  };
+
+  const gridOptions = {
+    headerHeight: 0,
+    rowHeight: 40,
+    suppressHorizontalScroll: true,
+    domLayout: 'autoHeight'
+  };
+
+  // Custom header component
   const CustomHeader = () => {
     if (!reportData) return null;
     
@@ -205,50 +257,65 @@ const BucketWiseReport = () => {
       <>
         <Box sx={{ 
           display: 'flex', 
-          bgcolor: '#D9E1F2', 
-          borderBottom: '1px solid #0070C0'
+          borderBottom: '1px solid #e2e2e2',
+          height: '28px'
         }}>
           <Box sx={{ 
             width: '60%', 
-            p: 1.5, 
+            p: 0.5,
+            pl: 1,
             fontWeight: 'bold',
-            borderRight: '1px solid #0070C0'
+            borderRight: '1px solid #e2e2e2',
+            fontSize: '13px',
+            display: 'flex',
+            alignItems: 'center'
           }}>
             Particulars
           </Box>
           <Box sx={{ 
             width: '40%',
-            p: 1.5,
+            p: 0.5,
             textAlign: 'center',
-            fontWeight: 'bold'
+            fontWeight: 'bold',
+            fontSize: '13px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
           }}>
             {reportData.date || 'N/A'}
           </Box>
         </Box>
         <Box sx={{ 
           display: 'flex',
-          bgcolor: '#D9E1F2',
-          borderBottom: '1px solid #0070C0'
+          borderBottom: '1px solid #e2e2e2',
+          height: '28px'
         }}>
           <Box sx={{ 
             width: '60%',
-            borderRight: '1px solid #0070C0',
-            p: 1
+            borderRight: '1px solid #e2e2e2'
           }}></Box>
           <Box sx={{ 
             width: '20%',
-            p: 1,
+            p: 0.5,
             fontWeight: 'bold',
             textAlign: 'center',
-            borderRight: '1px solid #0070C0'
+            borderRight: '1px solid #e2e2e2',
+            fontSize: '13px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
           }}>
             Total
           </Box>
           <Box sx={{ 
             width: '20%',
-            p: 1,
+            p: 0.5,
             fontWeight: 'bold',
-            textAlign: 'center'
+            textAlign: 'center',
+            fontSize: '13px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
           }}>
             Per MT
           </Box>
@@ -305,15 +372,21 @@ const BucketWiseReport = () => {
             {loading && <Typography>Loading report data...</Typography>}
 
             {reportData && (
-              <Paper sx={{ mt: 3, border: '1px solid #0070C0' }}>
+              <Paper sx={{ mt: 3, border: '1px solid #e2e2e2' }}>
                 {/* Report Title */}
                 <Box sx={{ 
-                  p: 2, 
-                  bgcolor: '#BDD7EE', 
+                  p: 1, 
                   textAlign: 'center',
-                  borderBottom: '1px solid #0070C0'
+                  borderBottom: '1px solid #e2e2e2',
+                  height: '32px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
                 }}>
-                  <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#002060' }}>
+                  <Typography sx={{ 
+                    fontWeight: 'bold', 
+                    fontSize: '14px'
+                  }}>
                     {reportData.bucketName || 'No Data'}
                   </Typography>
                 </Box>
@@ -321,44 +394,56 @@ const BucketWiseReport = () => {
                 {/* Custom Header */}
                 <CustomHeader />
 
-                {/* DataGrid */}
-                <Box sx={{ height: 'auto' }}>
-                  <DataGrid
-                    rows={rows}
-                    columns={columns}
-                    hideFooter
-                    autoHeight
-                    getRowHeight={() => 'auto'}
-                    disableColumnMenu
-                    disableColumnSelector
-                    disableColumnFilter
-                    disableRowSelectionOnClick
-                    sx={{
+                {/* AG Grid */}
+                <div 
+                  className="ag-theme-alpine" 
+                  style={{ 
+                    width: '100%',
+                    border: 'none'
+                  }}
+                  sx={{
+                    '& .ag-theme-alpine': {
                       border: 'none',
-                      '& .MuiDataGrid-columnHeaders': {
-                        display: 'none' // Hide default headers
+                      '& .ag-header': {
+                        height: '28px',
+                        minHeight: '28px',
+                        borderBottom: '1px solid #e2e2e2',
                       },
-                      '& .MuiDataGrid-cell': {
-                        borderBottom: '1px solid #E5E5E5',
-                        padding: 0,
-                        borderRight: '1px solid #0070C0'
+                      '& .ag-header-cell': {
+                        padding: '0 4px',
+                        lineHeight: '28px',
+                        backgroundColor: '#f8f9fa'
                       },
-                      '& .MuiDataGrid-cell:last-child': {
-                        borderRight: 'none' 
+                      '& .ag-cell': {
+                        lineHeight: '28px',
+                        borderRight: '1px solid #e2e2e2',
+                        padding: '0 8px'
                       },
-                      '& .MuiDataGrid-virtualScroller': {
-                        marginTop: '0 !important' // Remove header space
+                      '& .ag-row': {
+                        borderBottom: '1px solid #e2e2e2',
+                        height: '28px',
+                        '&:hover': {
+                          backgroundColor: '#f5f5f5'
+                        }
                       }
+                    }
+                  }}
+                >
+                  <AgGridReact
+                    rowData={rowData}
+                    columnDefs={columnDefs}
+                    defaultColDef={defaultColDef}
+                    gridOptions={{
+                      ...gridOptions,
+                      rowHeight: 28,
+                      headerHeight: 28,
+                      suppressHorizontalScroll: true,
+                      domLayout: 'autoHeight'
                     }}
-                    components={{
-                      NoRowsOverlay: () => (
-                        <Stack height="100%" alignItems="center" justifyContent="center">
-                          <Typography>No data available</Typography>
-                        </Stack>
-                      ),
-                    }}
+                    suppressMenuHide={true}
+                    suppressRowClickSelection={true}
                   />
-                </Box>
+                </div>
               </Paper>
             )}
           </Box>

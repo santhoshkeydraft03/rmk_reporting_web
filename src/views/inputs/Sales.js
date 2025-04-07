@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Card,
   CardContent,
@@ -6,28 +6,21 @@ import {
   Box,
   Button,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  Tabs,
-  Tab,
-  Checkbox,
   TextField,
   Snackbar,
-  Alert
+  Alert,
+  Grid,
+  InputAdornment
 } from '@mui/material';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import FileUploadIcon from '@mui/icons-material/FileUpload';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
+import SearchIcon from '@mui/icons-material/Search';
 import axiosInstance from '../../utils/axios';
 import PageContainer from '../../components/container/PageContainer';
-import { DataGrid } from '@mui/x-data-grid';
+import ReportGrid from '../../components/ReportGrid';
 import * as XLSX from 'xlsx';
 
 const Sales = () => {
@@ -41,23 +34,145 @@ const Sales = () => {
   const [salesData, setSalesData] = useState([]);
   const [selectedDate, setSelectedDate] = useState(null);
   const [isMonthLocked, setIsMonthLocked] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: '',
-    severity: 'info' // 'error', 'warning', 'info', 'success'
+    severity: 'info'
   });
 
-  const columns = [
-    { field: 'id', headerName: '#', width: 60 },
-    { field: 'productName', headerName: 'Product', flex: 1 },
-    { field: 'quarryName', headerName: 'Quarry', flex: 1 },
-    { field: 'salesInTons', headerName: 'Sales In Tons', flex: 1, type: 'number' },
-    { field: 'salesInValue', headerName: 'Sales In Value', flex: 1, type: 'number' },
-    { field: 'productionStatus', headerName: 'Production/Stock', flex: 1 },
-    { field: 'billingStatus', headerName: 'Billed Or Unbilled', flex: 1 },
-    { field: 'paymentType', headerName: 'GST/CASH', flex: 1 },
-    { field: 'gstValue', headerName: 'GST Value', flex: 1, type: 'number' }
-  ];
+  const columnDefs = useMemo(() => [
+    {
+      field: 'serialNo',
+      headerName: '#',
+      width: 70,
+      filter: true,
+      flex: 0.5,
+      cellStyle: { padding: '0 4px' }
+    },
+    {
+      field: 'productName',
+      headerName: 'Product',
+      filter: 'agTextColumnFilter',
+      flex: 1.2,
+      cellStyle: { padding: '0 4px' }
+    },
+    {
+      field: 'quarryName',
+      headerName: 'Quarry',
+      filter: 'agTextColumnFilter',
+      flex: 1,
+      cellStyle: { padding: '0 4px' }
+    },
+    {
+      field: 'salesInTons',
+      headerName: 'Sales In Tons',
+      filter: 'agNumberColumnFilter',
+      flex: 1,
+      type: 'numericColumn',
+      cellStyle: { padding: '0 4px', textAlign: 'right' }
+    },
+    {
+      field: 'salesInValue',
+      headerName: 'Sales In Value',
+      filter: 'agNumberColumnFilter',
+      flex: 1,
+      type: 'numericColumn',
+      cellStyle: { padding: '0 4px', textAlign: 'right' }
+    },
+    {
+      field: 'productionStatus',
+      headerName: 'Production/Stock',
+      filter: 'agTextColumnFilter',
+      flex: 1,
+      cellStyle: { padding: '0 4px' }
+    },
+    {
+      field: 'billingStatus',
+      headerName: 'Billed Or Unbilled',
+      filter: 'agTextColumnFilter',
+      flex: 1,
+      cellStyle: { padding: '0 4px' }
+    },
+    {
+      field: 'paymentType',
+      headerName: 'GST/CASH',
+      filter: 'agTextColumnFilter',
+      flex: 1,
+      cellStyle: { padding: '0 4px' }
+    },
+    {
+      field: 'gstValue',
+      headerName: 'GST Value',
+      filter: 'agNumberColumnFilter',
+      flex: 1,
+      type: 'numericColumn',
+      cellStyle: { padding: '0 4px', textAlign: 'right' }
+    }
+  ], []);
+
+  const gridOptions = {
+    enableRangeSelection: true,
+    enableCellTextSelection: true,
+    groupDisplayType: 'multipleColumns',
+    groupDefaultExpanded: 1,
+    suppressScrollOnNewData: true,
+    suppressAnimationFrame: false,
+    rowHeight: 28,
+    headerHeight: 28,
+    suppressRowHoverHighlight: false,
+    suppressColumnVirtualisation: true,
+    rowSelection: 'multiple',
+    defaultColDef: {
+      sortable: true,
+      resizable: true,
+      filter: true
+    }
+  };
+
+  const handleSearch = (event) => {
+    setSearchQuery(event.target.value);
+  };
+
+  const filteredSalesData = useMemo(() => {
+    if (!searchQuery) return salesData;
+    
+    const query = searchQuery.toLowerCase();
+    return salesData.filter(row => 
+      row.productName?.toLowerCase().includes(query) ||
+      row.quarryName?.toLowerCase().includes(query) ||
+      row.productionStatus?.toLowerCase().includes(query) ||
+      row.billingStatus?.toLowerCase().includes(query) ||
+      row.paymentType?.toLowerCase().includes(query) ||
+      String(row.salesInTons).includes(query) ||
+      String(row.salesInValue).includes(query) ||
+      String(row.gstValue).includes(query)
+    );
+  }, [salesData, searchQuery]);
+
+  const pinnedBottomRowData = useMemo(() => [{
+    serialNo: 'Total',
+    productName: `${filteredSalesData.length} Records`,
+    quarryName: '',
+    salesInTons: filteredSalesData.reduce((sum, row) => sum + (row.salesInTons || 0), 0),
+    salesInValue: filteredSalesData.reduce((sum, row) => sum + (row.salesInValue || 0), 0),
+    productionStatus: '',
+    billingStatus: '',
+    paymentType: '',
+    gstValue: filteredSalesData.reduce((sum, row) => sum + (row.gstValue || 0), 0)
+  }], [filteredSalesData]);
+
+  const previewPinnedBottomRowData = useMemo(() => previewData ? [{
+    serialNo: 'Total',
+    productName: `${previewData.length} Records`,
+    quarryName: '',
+    salesInTons: previewData.reduce((sum, row) => sum + (row.salesInTons || 0), 0),
+    salesInValue: previewData.reduce((sum, row) => sum + (row.salesInValue || 0), 0),
+    productionStatus: '',
+    billingStatus: '',
+    paymentType: '',
+    gstValue: previewData.reduce((sum, row) => sum + (row.gstValue || 0), 0)
+  }] : [], [previewData]);
 
   const fetchSalesData = async () => {
     try {
@@ -65,6 +180,7 @@ const Sales = () => {
       const response = await axiosInstance.get('/input/sales');
       const transformedData = response.data.map((sale, index) => ({
         id: sale.salesId,
+        serialNo: index + 1,
         productName: sale.productName,
         quarryName: sale.quarryName,
         salesInTons: sale.salesInTons,
@@ -76,7 +192,6 @@ const Sales = () => {
       }));
       setSalesData(transformedData);
     } catch (error) {
-      console.error('Error fetching sales data:', error);
       showNotification('Failed to fetch sales data', 'error');
     } finally {
       setLoading(false);
@@ -106,7 +221,6 @@ const Sales = () => {
       const data = await readExcelFile(selectedFile);
       setPreviewData(data);
     } catch (err) {
-      console.error('Preview Error:', err);
       showNotification('Failed to preview file. Please check the file format.', 'error');
     } finally {
       setLoading(false);
@@ -129,6 +243,7 @@ const Sales = () => {
           for(let row = 2; row <= range.e.r; row++) {
             const rowData = {
               id: row - 1,
+              serialNo: row - 1,
               productName: worksheet[`A${row}`]?.v || '',
               quarryName: worksheet[`B${row}`]?.v || '',
               salesInTons: worksheet[`C${row}`]?.v || 0,
@@ -147,7 +262,6 @@ const Sales = () => {
           
           resolve(data);
         } catch (err) {
-          console.error('Excel parsing error:', err);
           reject(err);
         }
       };
@@ -174,9 +288,8 @@ const Sales = () => {
           year: year
         }
       });
-      return response.data; // The response is directly a boolean value
+      return response.data;
     } catch (error) {
-      console.error('Error checking month data:', error);
       return false;
     }
   };
@@ -231,7 +344,6 @@ const Sales = () => {
     const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
     const year = String(selectedDate.getFullYear());
     
-    // Double-check before submission
     const exists = await checkMonthDataExists(month, year);
     if (exists) {
       showNotification(`Data already exists for ${month}/${year}. Cannot submit.`, 'error');
@@ -246,7 +358,7 @@ const Sales = () => {
         ? previewData.filter(row => selectedRows.includes(row.id))
         : previewData;
 
-      const salesData = dataToSubmit.map(({id, ...row}) => ({
+      const salesData = dataToSubmit.map(({id, serialNo, ...row}) => ({
         ...row,
         month,
         year
@@ -268,7 +380,6 @@ const Sales = () => {
         fetchSalesData();
       }
     } catch (error) {
-      console.error('Submit Error:', error);
       showNotification(
         error.response?.data?.message || 'Failed to save sales data', 
         'error'
@@ -282,10 +393,10 @@ const Sales = () => {
     if (selectedRows.length === 0) return;
     
     const updatedData = previewData.filter(row => !selectedRows.includes(row.id));
-    // Update the IDs to maintain sequence
     const reindexedData = updatedData.map((row, index) => ({
       ...row,
-      id: index + 1
+      id: index + 1,
+      serialNo: index + 1
     }));
     
     setPreviewData(reindexedData);
@@ -295,7 +406,6 @@ const Sales = () => {
   const validateSalesData = (dataToValidate) => {
     const errors = [];
 
-    // Rule 1: Check for "Unbilled CASH" combinations
     const unbilledCashEntries = dataToValidate.filter(
       row => row.billingStatus === "Unbilled" && row.paymentType === "CASH"
     );
@@ -303,7 +413,6 @@ const Sales = () => {
       errors.push("Unbilled CASH entries are not allowed");
     }
 
-    // Rule 2: Check for duplicate "Unbilled GST" entries with same product and quarry
     const unbilledGSTEntries = dataToValidate.filter(
       row => row.billingStatus === "Unbilled" && row.paymentType === "GST"
     );
@@ -317,7 +426,6 @@ const Sales = () => {
       unbilledGSTCombinations.add(key);
     });
 
-    // Rule 3: Check for duplicate "Billed" combinations
     const billedEntries = dataToValidate.filter(row => row.billingStatus === "Billed");
     const billedCombinations = new Set();
     billedEntries.forEach(row => {
@@ -334,252 +442,390 @@ const Sales = () => {
     };
   };
 
+  const onSelectionChanged = (event) => {
+    const selectedNodes = event.api.getSelectedNodes();
+    const selectedIds = selectedNodes.map(node => node.data.id);
+    setSelectedRows(selectedIds);
+  };
+
   return (
     <PageContainer title="Sales Input" description="Manage sales data">
-      <Card>
-        <CardContent>
-          {!showUploadSection ? (
-            <Box>
-              <Typography variant="h3" sx={{ color: '#2B3674', mb: 3 }}>
-                Sales Input
-              </Typography>
-
-              <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 3 }}>
-                <LocalizationProvider dateAdapter={AdapterDateFns}>
-                  <DatePicker
-                    label="From Date"
-                    value={fromDate}
-                    onChange={(newValue) => setFromDate(newValue)}
-                    slotProps={{ textField: { size: 'small' } }}
-                  />
-                  <DatePicker
-                    label="To Date"
-                    value={toDate}
-                    onChange={(newValue) => setToDate(newValue)}
-                    slotProps={{ textField: { size: 'small' } }}
-                  />
-                </LocalizationProvider>
-
+      <Box sx={{ p: 0 }}>
+        {!showUploadSection ? (
+          <>
+            <Stack 
+              direction="row" 
+              justifyContent="space-between" 
+              alignItems="center" 
+              sx={{ 
+                mb: 3,
+                '& .MuiButton-root': {
+                  borderRadius: '8px',
+                  textTransform: 'none',
+                  fontWeight: 500,
+                  px: 2,
+                  py: 0.75,
+                  fontSize: '0.875rem',
+                  minWidth: '100px',
+                  '& .MuiSvgIcon-root': {
+                    fontSize: '1.25rem',
+                  }
+                }
+              }}
+            >
+              <Stack direction="row" alignItems="center" spacing={2}>
+                <Typography variant="h5" sx={{ fontWeight: 600, color: 'text.primary', fontSize: '1.25rem' }}>
+                  Sales Input
+                </Typography>
+              </Stack>
+              <Stack direction="row" spacing={2}>
+                <Button
+                  size="medium"
+                  variant="outlined"
+                  startIcon={<FileDownloadIcon />}
+                  sx={{ 
+                    color: '#2a3547', 
+                    borderColor: '#edf2f6',
+                    '&:hover': {
+                      borderColor: '#5d87ff',
+                      bgcolor: 'rgba(93, 135, 255, 0.08)',
+                    }
+                  }}
+                >
+                  Export
+                </Button>
                 <Button
                   variant="contained"
-                  color="primary"
-                >
-                  EXPORT
-                </Button>
-
-                <Button
-                  variant="outlined"
-                  color="primary"
                   startIcon={<FileUploadIcon />}
                   onClick={() => setShowUploadSection(true)}
+                  sx={{
+                    bgcolor: '#5d87ff',
+                    '&:hover': { bgcolor: '#4570ea' },
+                    boxShadow: 'none'
+                  }}
                 >
-                  IMPORT
+                  Import
                 </Button>
               </Stack>
+            </Stack>
 
-              <Box>
-                <DataGrid
-                  rows={salesData}
-                  columns={columns}
-                  pageSize={10}
-                  rowsPerPageOptions={[10, 25, 50]}
-                  checkboxSelection
-                  disableSelectionOnClick
-                  autoHeight
-                  loading={loading}
-                  sx={{
-                    '& .MuiDataGrid-columnHeaders': {
-                      backgroundColor: '#F8FAFF',
-                      borderBottom: '2px solid #E5E5E5',
-                      minHeight: '48px !important',
-                      '& .MuiDataGrid-columnHeader': {
-                        borderRight: '1px solid #E5E5E5',
-                        padding: '8px 12px',
-                        '&:last-child': {
-                          borderRight: 'none',
+            <Card 
+              sx={{ 
+                p: 2, 
+                mb: 2, 
+                borderRadius: '12px',
+                border: '1px solid #edf2f6',
+                boxShadow: 'none',
+              }}
+            >
+              <Grid container spacing={2} alignItems="center">
+                <Grid item xs={12} sm={12} md={8}>
+                  <Stack direction="row" spacing={2}>
+                    <LocalizationProvider dateAdapter={AdapterDateFns}>
+                      <DatePicker
+                        label="From Date"
+                        value={fromDate}
+                        onChange={(newValue) => setFromDate(newValue)}
+                        slotProps={{ textField: { size: 'small' } }}
+                      />
+                      <DatePicker
+                        label="To Date"
+                        value={toDate}
+                        onChange={(newValue) => setToDate(newValue)}
+                        slotProps={{ textField: { size: 'small' } }}
+                      />
+                    </LocalizationProvider>
+                  </Stack>
+                </Grid>
+                <Grid item xs={12} sm={12} md={4}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    placeholder="Search..."
+                    value={searchQuery}
+                    onChange={handleSearch}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <SearchIcon sx={{ color: 'text.secondary' }} />
+                        </InputAdornment>
+                      ),
+                    }}
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        '& fieldset': {
+                          borderColor: '#edf2f6',
                         },
-                        '&:focus': {
-                          outline: 'none',
-                        }
+                        '&:hover fieldset': {
+                          borderColor: '#5d87ff',
+                        },
                       },
-                      '& .MuiDataGrid-columnHeaderTitle': {
-                        fontWeight: 700,
-                        fontSize: '0.95rem',
-                        color: '#2B3674',
-                      }
-                    },
-                    '& .MuiDataGrid-row': {
-                      minHeight: '40px !important',
-                      '&:hover': {
-                        backgroundColor: '#F8FAFF',
-                      },
-                      '&.Mui-selected': {
-                        backgroundColor: 'transparent',
-                      }
-                    },
-                    '& .MuiDataGrid-virtualScroller': {
-                      backgroundColor: '#fff',
-                      marginTop: '0 !important',
-                    },
-                    '& .MuiDataGrid-footerContainer': {
-                      borderTop: '2px solid #E5E5E5',
-                      backgroundColor: '#F8FAFF',
-                      minHeight: '42px',
-                    },
-                    '& .MuiDataGrid-columnHeaderCheckbox': {
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      padding: '0 !important', // Remove extra padding
-                    },
-                    border: '1px solid #E5E5E5',
-                    borderRadius: '12px',
-                    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.05)',
-                  }}
-                />
-              </Box>
-            </Box>
-          ) : (
-            // File upload section - simplified without tabs
-            <Box>
-              <Typography variant="h3" sx={{ color: '#2B3674', mb: 3 }}>
+                    }}
+                  />
+                </Grid>
+              </Grid>
+            </Card>
+
+            <Card 
+              sx={{ 
+                height: 'calc(100vh - 280px)',
+                minHeight: 500,
+                borderRadius: '12px',
+                border: '1px solid #edf2f6',
+                boxShadow: 'none',
+                overflow: 'hidden',
+                '& .ag-theme-alpine': {
+                  border: 'none',
+                  '& .ag-header': {
+                    height: '28px',
+                    minHeight: '28px',
+                    borderBottom: '1px solid #e2e2e2',
+                  },
+                  '& .ag-header-cell': {
+                    padding: '0 4px',
+                    lineHeight: '28px',
+                    backgroundColor: '#f8f9fa'
+                  },
+                  '& .ag-cell': {
+                    lineHeight: '28px',
+                    borderRight: '1px solid #e2e2e2',
+                  },
+                  '& .ag-row': {
+                    borderBottom: '1px solid #e2e2e2',
+                    height: '28px',
+                    '&:hover': {
+                      backgroundColor: '#f5f5f5'
+                    }
+                  },
+                  '& .ag-row-pinned': {
+                    backgroundColor: '#f8f9fa',
+                    fontWeight: 500
+                  }
+                }
+              }}
+            >
+              <ReportGrid
+                columnDefs={columnDefs}
+                rowData={filteredSalesData}
+                gridOptions={gridOptions}
+                height="100%"
+                pinnedBottomRowData={pinnedBottomRowData}
+              />
+            </Card>
+          </>
+        ) : (
+          <Box>
+            <Stack 
+              direction="row" 
+              justifyContent="space-between" 
+              alignItems="center" 
+              sx={{ 
+                mb: 3,
+                '& .MuiButton-root': {
+                  borderRadius: '8px',
+                  textTransform: 'none',
+                  fontWeight: 500,
+                  px: 2,
+                  py: 0.75,
+                  fontSize: '0.875rem'
+                }
+              }}
+            >
+              <Typography variant="h5" sx={{ fontWeight: 600, color: 'text.primary', fontSize: '1.25rem' }}>
                 Sales File Upload
               </Typography>
+            </Stack>
 
-              {!selectedFile ? (
-                <Box sx={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  minHeight: '400px',
-                  justifyContent: 'center'
-                }}>
-                  <input
-                    accept=".xlsx,.xls"
-                    style={{ display: 'none' }}
-                    id="file-upload"
-                    type="file"
-                    onChange={handleFileSelect}
-                  />
-                  <label htmlFor="file-upload">
-                    <Button
-                      component="span"
-                      variant="contained"
-                      color="primary"
-                      sx={{
-                        minWidth: '150px'
-                      }}
-                    >
-                      CHOOSE FILE
-                    </Button>
-                  </label>
-                </Box>
-              ) : !previewData ? (
-                <Box sx={{ textAlign: 'center' }}>
-                  <Typography sx={{ mb: 3 }}>
-                    File Name: {selectedFile.name}
-                  </Typography>
-                  <Stack direction="row" spacing={2} justifyContent="center">
-                    <Button
-                      variant="contained"
-                      onClick={handlePreview}
-                      color="primary"
-                    >
-                      PREVIEW
-                    </Button>
-                    <Button
-                      variant="outlined"
-                      onClick={handleDiscard}
-                    >
-                      DISCARD
-                    </Button>
-                  </Stack>
-                </Box>
-              ) : (
-                <>
-                  <Box sx={{ mb: 3, display: 'flex', flexDirection: 'column' }}>
-                    <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 3 }}>
-                      <LocalizationProvider dateAdapter={AdapterDateFns}>
-                        <DatePicker
-                          label="Month and Year"
-                          value={selectedDate}
-                          onChange={handleDateChange}
-                          slotProps={{ textField: { size: 'small' } }}
-                          views={['month', 'year']}
-                          openTo="month"
-                        />
-                      </LocalizationProvider>
-                      
-                      {!selectedDate && (
-                        <Typography 
-                          variant="caption" 
-                          color="error.main"
-                          sx={{ 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            ml: 1 
-                          }}
-                        >
-                          * Please select month and year
-                        </Typography>
-                      )}
-                    </Stack>
-                  </Box>
-
-                  <Box sx={{ height: 400, width: '100%', mb: 3 }}>
-                    <DataGrid
-                      rows={previewData}
-                      columns={columns}
-                      pageSize={5}
-                      rowsPerPageOptions={[5, 10, 20]}
-                      checkboxSelection
-                      disableSelectionOnClick
-                      onSelectionModelChange={(newSelection) => {
-                        setSelectedRows(newSelection);
-                      }}
-                      selectionModel={selectedRows}
-                    />
-                  </Box>
-                  
-                  <Stack 
-                    direction="row" 
-                    spacing={2} 
-                    justifyContent="center"
-                    sx={{ mt: 2 }}
+            {!selectedFile ? (
+              <Box sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                minHeight: '400px',
+                justifyContent: 'center'
+              }}>
+                <input
+                  accept=".xlsx,.xls"
+                  style={{ display: 'none' }}
+                  id="file-upload"
+                  type="file"
+                  onChange={handleFileSelect}
+                />
+                <label htmlFor="file-upload">
+                  <Button
+                    component="span"
+                    variant="contained"
+                    sx={{
+                      minWidth: '150px',
+                      bgcolor: '#5d87ff',
+                      '&:hover': { bgcolor: '#4570ea' },
+                      boxShadow: 'none'
+                    }}
                   >
-                    <Button
-                      variant="contained"
-                      onClick={handleSubmit}
-                      disabled={loading || !selectedDate}
-                      color="primary"
-                    >
-                      SUBMIT
-                    </Button>
-
-                    <Button
-                      variant="contained"
-                      onClick={handleDeleteSelected}
-                      disabled={selectedRows.length === 0 || loading}
-                      color="warning"
-                    >
-                      DELETE SELECTED ({selectedRows.length})
-                    </Button>
-
-                    <Button
-                      variant="outlined"
-                      onClick={handleDiscard}
-                      disabled={loading}
-                      color="primary"
-                    >
-                      DISCARD
-                    </Button>
+                    CHOOSE FILE
+                  </Button>
+                </label>
+              </Box>
+            ) : !previewData ? (
+              <Box sx={{ textAlign: 'center' }}>
+                <Typography sx={{ mb: 3 }}>
+                  File Name: {selectedFile.name}
+                </Typography>
+                <Stack direction="row" spacing={2} justifyContent="center">
+                  <Button
+                    variant="contained"
+                    onClick={handlePreview}
+                    sx={{
+                      bgcolor: '#5d87ff',
+                      '&:hover': { bgcolor: '#4570ea' },
+                      boxShadow: 'none'
+                    }}
+                  >
+                    PREVIEW
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    onClick={handleDiscard}
+                    sx={{
+                      color: '#5D87FF',
+                      borderColor: '#5D87FF',
+                      '&:hover': {
+                        borderColor: '#4570EA',
+                      }
+                    }}
+                  >
+                    DISCARD
+                  </Button>
+                </Stack>
+              </Box>
+            ) : (
+              <>
+                <Box sx={{ mb: 3 }}>
+                  <Stack direction="row" spacing={2} alignItems="center">
+                    <LocalizationProvider dateAdapter={AdapterDateFns}>
+                      <DatePicker
+                        label="Month and Year"
+                        value={selectedDate}
+                        onChange={handleDateChange}
+                        slotProps={{ textField: { size: 'small' } }}
+                        views={['month', 'year']}
+                        openTo="month"
+                      />
+                    </LocalizationProvider>
+                    
+                    {!selectedDate && (
+                      <Typography 
+                        variant="caption" 
+                        color="error.main"
+                        sx={{ 
+                          display: 'flex', 
+                          alignItems: 'center'
+                        }}
+                      >
+                        * Please select month and year
+                      </Typography>
+                    )}
                   </Stack>
-                </>
-              )}
-            </Box>
-          )}
-        </CardContent>
-      </Card>
+                </Box>
+
+                <Card 
+                  sx={{ 
+                    height: 400,
+                    borderRadius: '12px',
+                    border: '1px solid #edf2f6',
+                    boxShadow: 'none',
+                    overflow: 'hidden',
+                    mb: 3,
+                    '& .ag-theme-alpine': {
+                      border: 'none',
+                      '& .ag-header': {
+                        height: '28px',
+                        minHeight: '28px',
+                        borderBottom: '1px solid #e2e2e2',
+                      },
+                      '& .ag-header-cell': {
+                        padding: '0 4px',
+                        lineHeight: '28px',
+                        backgroundColor: '#f8f9fa'
+                      },
+                      '& .ag-cell': {
+                        lineHeight: '28px',
+                        borderRight: '1px solid #e2e2e2',
+                      },
+                      '& .ag-row': {
+                        borderBottom: '1px solid #e2e2e2',
+                        height: '28px',
+                        '&:hover': {
+                          backgroundColor: '#f5f5f5'
+                        }
+                      },
+                      '& .ag-row-pinned': {
+                        backgroundColor: '#f8f9fa',
+                        fontWeight: 500
+                      }
+                    }
+                  }}
+                >
+                  <ReportGrid
+                    columnDefs={columnDefs}
+                    rowData={previewData}
+                    gridOptions={gridOptions}
+                    height="100%"
+                    pinnedBottomRowData={previewPinnedBottomRowData}
+                    onSelectionChanged={onSelectionChanged}
+                  />
+                </Card>
+                
+                <Stack 
+                  direction="row" 
+                  spacing={2} 
+                  justifyContent="center"
+                >
+                  <Button
+                    variant="contained"
+                    onClick={handleSubmit}
+                    disabled={loading || !selectedDate}
+                    sx={{
+                      bgcolor: '#5d87ff',
+                      '&:hover': { bgcolor: '#4570ea' },
+                      boxShadow: 'none'
+                    }}
+                  >
+                    SUBMIT
+                  </Button>
+
+                  <Button
+                    variant="contained"
+                    onClick={handleDeleteSelected}
+                    disabled={selectedRows.length === 0 || loading}
+                    color="warning"
+                    sx={{
+                      boxShadow: 'none'
+                    }}
+                  >
+                    DELETE SELECTED ({selectedRows.length})
+                  </Button>
+
+                  <Button
+                    variant="outlined"
+                    onClick={handleDiscard}
+                    disabled={loading}
+                    sx={{
+                      color: '#5D87FF',
+                      borderColor: '#5D87FF',
+                      '&:hover': {
+                        borderColor: '#4570EA',
+                      }
+                    }}
+                  >
+                    DISCARD
+                  </Button>
+                </Stack>
+              </>
+            )}
+          </Box>
+        )}
+      </Box>
       <Snackbar 
         open={snackbar.open} 
         autoHideDuration={6000} 
