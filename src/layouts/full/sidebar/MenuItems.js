@@ -168,6 +168,12 @@ const Menuitems = [
   },
   {
     id: uniqueId(),
+    title: 'Material Cost Report',
+    icon: IconChartBar,
+    href: '/app/reports/material-cost',
+  },
+  {
+    id: uniqueId(),
     title: 'Final Report',
     icon: IconChartBar,
     href: '/app/reports/final',

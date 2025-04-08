@@ -43,6 +43,7 @@ const AvgSalesPrice = Loadable(lazy(() => import('../views/reports/AvgSalesPrice
 const Final = Loadable(lazy(() => import('../views/reports/AvgSalesPrice.jsx')));
 const ProductionReport = Loadable(lazy(() => import('../views/reports/ProductionReport.js')));
 const AverageCostReport = Loadable(lazy(() => import('../views/reports/AverageCostReport.js')));
+const MaterialCostReport = Loadable(lazy(() => import('../views/reports/MaterialCostReport.js')));
 
 const Router = [
   {
@@ -93,6 +94,7 @@ const Router = [
       { path: 'reports/avg-sales-price', element: <AvgSalesPrice /> },
       { path: 'reports/production-report', element: <ProductionReport /> },
       { path: 'reports/avg-cost', element: <AverageCostReport /> },
+      { path: 'reports/material-cost', element: <MaterialCostReport /> },
       { path: 'reports/final', element: <Final /> },
 
       // Error pages
