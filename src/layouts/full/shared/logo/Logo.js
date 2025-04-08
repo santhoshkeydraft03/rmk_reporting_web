@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { ReactComponent as LogoDark1 } from "src/assets/images/logos/dark1-logo.svg";
+import { Typography } from "@mui/material";
 import { styled } from "@mui/material";
 
 const LinkStyled = styled(Link)(() => ({
@@ -17,9 +17,12 @@ const Logo = () => {
       style={{
         display: "flex",
         alignItems: "center",
+        justifyContent: "center"
       }}
     >
-      <LogoDark1 />
+      <Typography variant="h4" color="primary" sx={{ fontWeight: 'bold' }}>
+        RMK
+      </Typography>
     </LinkStyled>
   );
 };

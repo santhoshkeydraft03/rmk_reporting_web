@@ -42,6 +42,7 @@ const BucketWiseReport = Loadable(lazy(() => import('../views/reports/BucketWise
 const AvgSalesPrice = Loadable(lazy(() => import('../views/reports/AvgSalesPrice.js')));
 const Final = Loadable(lazy(() => import('../views/reports/AvgSalesPrice.jsx')));
 const ProductionReport = Loadable(lazy(() => import('../views/reports/ProductionReport.js')));
+const AverageCostReport = Loadable(lazy(() => import('../views/reports/AverageCostReport.js')));
 
 const Router = [
   {
@@ -91,6 +92,7 @@ const Router = [
       { path: 'reports/bucket-wise', element: <BucketWiseReport /> },
       { path: 'reports/avg-sales-price', element: <AvgSalesPrice /> },
       { path: 'reports/production-report', element: <ProductionReport /> },
+      { path: 'reports/avg-cost', element: <AverageCostReport /> },
       { path: 'reports/final', element: <Final /> },
 
       // Error pages

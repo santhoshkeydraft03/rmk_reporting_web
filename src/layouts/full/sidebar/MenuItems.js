@@ -162,6 +162,12 @@ const Menuitems = [
   },
   {
     id: uniqueId(),
+    title: 'Avg Cost',
+    icon: IconChartBar,
+    href: '/app/reports/avg-cost',
+  },
+  {
+    id: uniqueId(),
     title: 'Final Report',
     icon: IconChartBar,
     href: '/app/reports/final',

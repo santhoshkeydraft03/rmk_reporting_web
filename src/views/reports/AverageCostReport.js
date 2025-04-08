@@ -6,10 +6,6 @@ import {
   Box,
   Stack,
   Button,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
   Paper,
   Alert,
   Snackbar
@@ -23,52 +19,20 @@ import * as XLSX from 'xlsx';
 import PageContainer from '../../components/container/PageContainer';
 import axiosInstance from '../../utils/axios';
 
-const ProductionReport = () => {
+const AverageCostReport = () => {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [selectedDate, setSelectedDate] = useState(null);
-  const [plants, setPlants] = useState([]);
-  const [selectedPlant, setSelectedPlant] = useState(0);
-  const [grandTotal, setGrandTotal] = useState(0);
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: '',
     severity: 'info'
   });
 
-  // Fetch plants for dropdown
-  const fetchPlants = async () => {
-    try {
-      const response = await axiosInstance.get('/master/plants');
-      setPlants(response.data);
-    } catch (err) {
-      setError('Failed to fetch plants');
-    }
-  };
-
-  useEffect(() => {
-    fetchPlants();
-  }, []);
-
   const columns = [
     { 
-      field: 'productName', 
-      headerName: 'Product', 
-      flex: 1,
-      renderCell: (params) => (
-        <Box sx={{ 
-          width: '100%',
-          height: '100%',
-          p: 1,
-          bgcolor: '#FFCCFF'
-        }}>
-          {params.value}
-        </Box>
-      )
-    },
-    { 
-      field: 'quarryName', 
+      field: 'quarry', 
       headerName: 'Quarry', 
       flex: 1,
       renderCell: (params) => (
@@ -83,8 +47,8 @@ const ProductionReport = () => {
       )
     },
     {
-      field: 'production',
-      headerName: 'Production',
+      field: 'avgCost',
+      headerName: 'Average Cost',
       flex: 1,
       align: 'right',
       renderCell: (params) => (
@@ -104,7 +68,7 @@ const ProductionReport = () => {
     }
   ];
 
-  const fetchProductionData = async (plantId, date) => {
+  const fetchAverageCostData = async (date) => {
     if (!date) {
       setRows([]);
       return;
@@ -115,52 +79,47 @@ const ProductionReport = () => {
       const month = (date.getMonth() + 1).toString().padStart(2, '0');
       const year = date.getFullYear().toString();
 
-      const response = await axiosInstance.get('/reports/production-report', {
+      const response = await axiosInstance.get('/reports/average-cost', {
         params: {
-          plantId: plantId,
           month: month,
           year: year
         }
       });
       
-      const transformedData = response.data.items.map((item, index) => ({
+      const transformedData = response.data.map((item, index) => ({
         id: index + 1,
-        productName: item.productName,
-        quarryName: item.quarryName,
-        production: item.production
+        quarry: item.quarry,
+        avgCost: item.avgCost
       }));
       
       setRows(transformedData);
-      setGrandTotal(response.data.grandTotal);
       setError('');
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to fetch production data');
+      setError(err.response?.data?.message || 'Failed to fetch average cost data');
       setRows([]);
-      setGrandTotal(0);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (selectedDate && selectedPlant !== undefined && selectedPlant !== null) {
-      fetchProductionData(selectedPlant, selectedDate);
+    if (selectedDate) {
+      fetchAverageCostData(selectedDate);
     }
-  }, [selectedPlant, selectedDate]);
+  }, [selectedDate]);
 
   const handleExport = () => {
     try {
       const worksheet = XLSX.utils.json_to_sheet(rows.map(row => ({
-        'Product': row.productName,
-        'Quarry': row.quarryName,
-        'Production': row.production
+        'Quarry': row.quarry,
+        'Average Cost': row.avgCost
       })));
 
       const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Production Report');
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Average Cost Report');
 
       const date = selectedDate;
-      const fileName = `Production_Report_${date.getFullYear()}_${(date.getMonth() + 1).toString().padStart(2, '0')}.xlsx`;
+      const fileName = `Average_Cost_Report_${date.getFullYear()}_${(date.getMonth() + 1).toString().padStart(2, '0')}.xlsx`;
 
       XLSX.writeFile(workbook, fileName);
       showNotification('Report exported successfully', 'success');
@@ -179,31 +138,15 @@ const ProductionReport = () => {
   };
 
   return (
-    <PageContainer title="Production Report" description="Production Report">
+    <PageContainer title="Average Cost Report" description="Average Cost Report">
       <Card>
         <CardContent>
           <Box sx={{ width: '100%' }}>
             <Typography variant="h3" sx={{ color: '#2B3674', mb: 3 }}>
-              Production Report
+              Average Cost Report
             </Typography>
 
             <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 3 }}>
-              <FormControl sx={{ minWidth: 200 }} size="small">
-                <InputLabel>Select Plant</InputLabel>
-                <Select
-                  value={selectedPlant}
-                  label="Select Plant"
-                  onChange={(e) => setSelectedPlant(e.target.value)}
-                >
-                  <MenuItem value={0}>All</MenuItem>
-                  {plants.map((plant) => (
-                    <MenuItem key={plant.plantId} value={plant.plantId}>
-                      {plant.plantName}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-
               <LocalizationProvider dateAdapter={AdapterDateFns}>
                 <DatePicker
                   label="Select Month"
@@ -240,9 +183,7 @@ const ProductionReport = () => {
                   borderBottom: '1px solid #0070C0'
                 }}>
                   <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#002060' }}>
-                    {selectedPlant === 0 
-                      ? 'All Plants' 
-                      : plants.find(p => p.plantId === selectedPlant)?.plantName || 'No Data'}
+                    Average Cost Report
                   </Typography>
                 </Box>
 
@@ -258,14 +199,6 @@ const ProductionReport = () => {
                     fontWeight: 'bold',
                     borderRight: '1px solid #0070C0'
                   }}>
-                    Product
-                  </Box>
-                  <Box sx={{ 
-                    flex: 1,
-                    p: 1.5, 
-                    fontWeight: 'bold',
-                    borderRight: '1px solid #0070C0'
-                  }}>
                     Quarry
                   </Box>
                   <Box sx={{ 
@@ -274,7 +207,7 @@ const ProductionReport = () => {
                     textAlign: 'right',
                     fontWeight: 'bold'
                   }}>
-                    Production
+                    Average Cost
                   </Box>
                 </Box>
 
@@ -325,44 +258,6 @@ const ProductionReport = () => {
                     }}
                   />
                 </Box>
-
-                {/* Grand Total Row */}
-                {rows.length > 0 && (
-                  <Box sx={{ 
-                    display: 'flex', 
-                    bgcolor: '#E2EFDA',
-                    borderTop: '1px solid #0070C0',
-                    borderBottom: '1px solid #0070C0'
-                  }}>
-                    <Box sx={{ 
-                      flex: 1,
-                      p: 1.5, 
-                      fontWeight: 'bold',
-                      borderRight: '1px solid #0070C0'
-                    }}>
-                      Grand Total
-                    </Box>
-                    <Box sx={{ 
-                      flex: 1,
-                      p: 1.5, 
-                      fontWeight: 'bold',
-                      borderRight: '1px solid #0070C0'
-                    }}>
-                      -
-                    </Box>
-                    <Box sx={{ 
-                      flex: 1,
-                      p: 1.5,
-                      textAlign: 'right',
-                      fontWeight: 'bold'
-                    }}>
-                      {grandTotal?.toLocaleString('en-IN', {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}
-                    </Box>
-                  </Box>
-                )}
               </Paper>
             )}
 
@@ -393,4 +288,4 @@ const ProductionReport = () => {
   );
 };
 
-export default ProductionReport; 
+export default AverageCostReport; 
