@@ -150,14 +150,14 @@ const OtherIncomes = () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
-      if (filterData.status) params.append('status', filterData.status);
+      if (filterData.status) params.append('status', filterData.status === 'Active' ? 1 : 0);
       
       const response = await axiosInstance.get(`/master/other-incomes${params.toString() ? `?${params.toString()}` : ''}`);
       const transformedData = response.data.map((item, index) => ({
         id: item.otherIncomesId,
         serialNo: index + 1,
         incomeType: item.incomeType,
-        status: item.status || 'Active'
+        status: item.status === 1 ? 'Active' : 'Inactive'
       }));
       setOriginalRows(transformedData);
       setRows(transformedData);
@@ -179,14 +179,14 @@ const OtherIncomes = () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
-      if (newFilterData.status) params.append('status', newFilterData.status);
+      if (newFilterData.status) params.append('status', newFilterData.status === 'Active' ? 1 : 0);
       
       const response = await axiosInstance.get(`/master/other-incomes${params.toString() ? `?${params.toString()}` : ''}`);
       const filteredData = response.data.map((item, index) => ({
         id: item.otherIncomesId,
         serialNo: index + 1,
         incomeType: item.incomeType,
-        status: item.status || 'Active'
+        status: item.status === 1 ? 'Active' : 'Inactive'
       }));
       setOriginalRows(filteredData);
       
@@ -234,9 +234,10 @@ const OtherIncomes = () => {
       const apiData = {
         otherIncomesId: editingId || 0,
         incomeType: formData.incomeType,
-        status: formData.status
+        status: formData.status === 'Active' ? 1 : 0
       };
 
+      console.log('Submitting other income data:', apiData); // Debug log
       await axiosInstance.post('/master/other-incomes', apiData);
       await fetchOtherIncomes();
       handleCloseDialog();
@@ -269,7 +270,7 @@ const OtherIncomes = () => {
       const response = await axiosInstance.get(`/master/other-incomes/${record.id}`);
       setFormData({
         incomeType: response.data.incomeType,
-        status: response.data.status || 'Active'
+        status: response.data.status === 1 ? 'Active' : 'Inactive'
       });
       setEditingId(response.data.otherIncomesId);
       setOpenDialog(true);

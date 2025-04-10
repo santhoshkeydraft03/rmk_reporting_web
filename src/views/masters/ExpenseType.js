@@ -151,14 +151,14 @@ const ExpenseType = () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
-      if (filterData.status) params.append('status', filterData.status);
+      if (filterData.status) params.append('status', filterData.status === 'Active' ? 1 : 0);
       
       const response = await axiosInstance.get(`/master/expense-types${params.toString() ? `?${params.toString()}` : ''}`);
       const transformedData = response.data.map((item, index) => ({
         id: item.expenseTypeId,
         serialNo: index + 1,
         expenseType: item.expenseTypeName,
-        status: 'Active'
+        status: item.status === 1 ? 'Active' : 'Inactive'
       }));
       setOriginalRows(transformedData);
       setRows(transformedData);
@@ -180,14 +180,14 @@ const ExpenseType = () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
-      if (newFilterData.status) params.append('status', newFilterData.status);
+      if (newFilterData.status) params.append('status', newFilterData.status === 'Active' ? 1 : 0);
       
       const response = await axiosInstance.get(`/master/expense-types${params.toString() ? `?${params.toString()}` : ''}`);
       const filteredData = response.data.map((item, index) => ({
         id: item.expenseTypeId,
         serialNo: index + 1,
         expenseType: item.expenseTypeName,
-        status: 'Active'
+        status: item.status === 1 ? 'Active' : 'Inactive'
       }));
       setOriginalRows(filteredData);
       
@@ -234,7 +234,8 @@ const ExpenseType = () => {
     try {
       const apiData = {
         expenseTypeId: editingId || 0,
-        expenseTypeName: formData.expenseType
+        expenseTypeName: formData.expenseType,
+        status: formData.status === 'Active' ? 1 : 0
       };
 
       await axiosInstance.post('/master/expense-types', apiData);
@@ -269,7 +270,7 @@ const ExpenseType = () => {
       const response = await axiosInstance.get(`/master/expense-types/${record.id}`);
       setFormData({
         expenseType: response.data.expenseTypeName,
-        status: 'Active'
+        status: response.data.status === 1 ? 'Active' : 'Inactive'
       });
       setEditingId(response.data.expenseTypeId);
       setOpenDialog(true);

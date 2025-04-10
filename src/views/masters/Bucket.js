@@ -189,7 +189,7 @@ const Bucket = () => {
       const params = new URLSearchParams();
       if (filterData.plantId) params.append('plantId', filterData.plantId);
       if (filterData.category) params.append('category', filterData.category);
-      if (filterData.status) params.append('status', filterData.status);
+      if (filterData.status) params.append('status', filterData.status === 'Active' ? 1 : 0);
       
       const response = await axiosInstance.get(`/master/buckets${params.toString() ? `?${params.toString()}` : ''}`);
       const transformedData = response.data.map((item, index) => ({
@@ -199,7 +199,7 @@ const Bucket = () => {
         plantName: item.plant?.plantName,
         plantId: item.plant?.plantId,
         category: item.category,
-        status: item.status || 'Active'
+        status: item.status === 1 ? 'Active' : 'Inactive'
       }));
       setOriginalRows(transformedData);
       setRows(transformedData);
@@ -219,7 +219,7 @@ const Bucket = () => {
       const params = new URLSearchParams();
       if (newFilterData.plantId) params.append('plantId', newFilterData.plantId);
       if (newFilterData.category) params.append('category', newFilterData.category);
-      if (newFilterData.status) params.append('status', newFilterData.status);
+      if (newFilterData.status) params.append('status', newFilterData.status === 'Active' ? 1 : 0);
       
       const response = await axiosInstance.get(`/master/buckets${params.toString() ? `?${params.toString()}` : ''}`);
       const filteredData = response.data.map((item, index) => ({
@@ -229,7 +229,7 @@ const Bucket = () => {
         plantName: item.plant?.plantName,
         plantId: item.plant?.plantId,
         category: item.category,
-        status: item.status || 'Active'
+        status: item.status === 1 ? 'Active' : 'Inactive'
       }));
       setOriginalRows(filteredData);
       
@@ -281,9 +281,10 @@ const Bucket = () => {
           plantId: parseInt(formData.plantId)
         },
         category: formData.category,
-        status: formData.status
+        status: formData.status === 'Active' ? 1 : 0
       };
 
+      console.log('Submitting bucket data:', apiData); // Debug log
       await axiosInstance.post('/master/buckets', apiData);
       await fetchBuckets();
       handleCloseDialog();
@@ -318,7 +319,7 @@ const Bucket = () => {
         bucketName: response.data.bucketName,
         plantId: response.data.plant?.plantId.toString(),
         category: response.data.category,
-        status: response.data.status || 'Active'
+        status: response.data.status === 1 ? 'Active' : 'Inactive'
       });
       setEditingId(response.data.bucketId);
       setOpenDialog(true);

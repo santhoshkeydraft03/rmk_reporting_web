@@ -163,7 +163,7 @@ const ExpenseGroup = () => {
     try {
       const params = new URLSearchParams();
       if (filterData.expenseTypeId) params.append('expenseTypeId', filterData.expenseTypeId);
-      if (filterData.status) params.append('status', filterData.status);
+      if (filterData.status) params.append('status', filterData.status === 'Active' ? 1 : 0);
       
       const response = await axiosInstance.get(`/master/expense-groups${params.toString() ? `?${params.toString()}` : ''}`);
       const transformedData = response.data.map((item, index) => ({
@@ -171,7 +171,7 @@ const ExpenseGroup = () => {
         serialNo: index + 1,
         expenseGroup: item.name,
         expenseTypeName: item.expenseType?.expenseTypeName,
-        status: item.status || 'Active'
+        status: item.status === 1 ? 'Active' : 'Inactive'
       }));
       setOriginalRows(transformedData);
       setRows(transformedData);
@@ -205,7 +205,7 @@ const ExpenseGroup = () => {
     try {
       const params = new URLSearchParams();
       if (newFilterData.expenseTypeId) params.append('expenseTypeId', newFilterData.expenseTypeId);
-      if (newFilterData.status) params.append('status', newFilterData.status);
+      if (newFilterData.status) params.append('status', newFilterData.status === 'Active' ? 1 : 0);
       
       const response = await axiosInstance.get(`/master/expense-groups${params.toString() ? `?${params.toString()}` : ''}`);
       const filteredData = response.data.map((item, index) => ({
@@ -213,7 +213,7 @@ const ExpenseGroup = () => {
         serialNo: index + 1,
         expenseGroup: item.name,
         expenseTypeName: item.expenseType?.expenseTypeName,
-        status: item.status || 'Active'
+        status: item.status === 1 ? 'Active' : 'Inactive'
       }));
       setOriginalRows(filteredData);
       
@@ -264,9 +264,10 @@ const ExpenseGroup = () => {
         expenseType: {
           expenseTypeId: parseInt(formData.expenseTypeId)
         },
-        status: formData.status
+        status: formData.status === 'Active' ? 1 : 0
       };
 
+      console.log('Submitting data:', apiData); // Debug log
       await axiosInstance.post('/master/expense-groups', apiData);
       await fetchExpenseGroups();
       handleCloseDialog();
@@ -300,7 +301,7 @@ const ExpenseGroup = () => {
       setFormData({
         expenseGroup: response.data.name,
         expenseTypeId: response.data.expenseType?.expenseTypeId.toString(),
-        status: response.data.status || 'Active'
+        status: response.data.status === 1 ? 'Active' : 'Inactive'
       });
       setEditingId(response.data.expenseGroupId);
       setOpenDialog(true);

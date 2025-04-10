@@ -198,7 +198,7 @@ const Product = () => {
       if (filterData.quarryId) params.append('quarryId', filterData.quarryId);
       if (filterData.productGroup) params.append('productGroup', filterData.productGroup);
       if (filterData.production) params.append('production', filterData.production);
-      if (filterData.status) params.append('status', filterData.status);
+      if (filterData.status) params.append('status', filterData.status === 'Active' ? 1 : 0);
       
       const response = await axiosInstance.get(`/master/products${params.toString() ? `?${params.toString()}` : ''}`);
       const transformedData = response.data.map((item, index) => ({
@@ -209,7 +209,7 @@ const Product = () => {
         quarryId: item.quarry?.plantId || '',
         productGroup: item.productGroup,
         production: item.production,
-        status: item.status || 'Active'
+        status: item.status === 1 ? 'Active' : 'Inactive'
       }));
       setOriginalRows(transformedData);
       setRows(transformedData);
@@ -230,7 +230,7 @@ const Product = () => {
       if (newFilterData.quarryId) params.append('quarryId', newFilterData.quarryId);
       if (newFilterData.productGroup) params.append('productGroup', newFilterData.productGroup);
       if (newFilterData.production) params.append('production', newFilterData.production);
-      if (newFilterData.status) params.append('status', newFilterData.status);
+      if (newFilterData.status) params.append('status', newFilterData.status === 'Active' ? 1 : 0);
       
       const response = await axiosInstance.get(`/master/products${params.toString() ? `?${params.toString()}` : ''}`);
       const filteredData = response.data.map((item, index) => ({
@@ -241,7 +241,7 @@ const Product = () => {
         quarryId: item.quarry?.plantId || '',
         productGroup: item.productGroup,
         production: item.production,
-        status: item.status || 'Active'
+        status: item.status === 1 ? 'Active' : 'Inactive'
       }));
       setOriginalRows(filteredData);
       
@@ -294,9 +294,10 @@ const Product = () => {
         },
         productGroup: formData.productGroup,
         production: formData.production,
-        status: formData.status
+        status: formData.status === 'Active' ? 1 : 0
       };
 
+      console.log('Submitting product data:', apiData); // Debug log
       await axiosInstance.post('/master/products', apiData);
       await fetchProducts();
       handleCloseDialog();
@@ -332,7 +333,7 @@ const Product = () => {
         quarryId: response.data.quarry?.plantId.toString() || '',
         productGroup: response.data.productGroup,
         production: response.data.production,
-        status: response.data.status || 'Active'
+        status: response.data.status === 1 ? 'Active' : 'Inactive'
       });
       setEditingId(response.data.productId);
       setOpenDialog(true);

@@ -198,7 +198,7 @@ const Plant = () => {
       const params = new URLSearchParams();
       if (filterData.plantType) params.append('plantType', filterData.plantType);
       if (filterData.yardStatus) params.append('yardStatus', filterData.yardStatus);
-      if (filterData.status) params.append('status', filterData.status);
+      if (filterData.status) params.append('status', filterData.status === 'Active' ? 1 : 0);
       
       const response = await axiosInstance.get(`/master/plants${params.toString() ? `?${params.toString()}` : ''}`);
       const transformedData = response.data.map((item, index) => ({
@@ -208,7 +208,7 @@ const Plant = () => {
         shortName: item.shortName,
         plantType: item.plantType,
         yardStatus: item.yardStatus,
-        status: item.status || 'Active'
+        status: item.status === 1 ? 'Active' : 'Inactive'
       }));
       setOriginalRows(transformedData);
       setRows(transformedData);
@@ -232,7 +232,7 @@ const Plant = () => {
       const params = new URLSearchParams();
       if (newFilterData.plantType) params.append('plantType', newFilterData.plantType);
       if (newFilterData.yardStatus) params.append('yardStatus', newFilterData.yardStatus);
-      if (newFilterData.status) params.append('status', newFilterData.status);
+      if (newFilterData.status) params.append('status', newFilterData.status === 'Active' ? 1 : 0);
       
       const response = await axiosInstance.get(`/master/plants${params.toString() ? `?${params.toString()}` : ''}`);
       const filteredData = response.data.map((item, index) => ({
@@ -242,7 +242,7 @@ const Plant = () => {
         shortName: item.shortName,
         plantType: item.plantType,
         yardStatus: item.yardStatus,
-        status: item.status || 'Active'
+        status: item.status === 1 ? 'Active' : 'Inactive'
       }));
       setOriginalRows(filteredData);
       
@@ -293,9 +293,10 @@ const Plant = () => {
         shortName: formData.shortName,
         plantType: formData.plantType,
         yardStatus: formData.yardStatus,
-        status: formData.status
+        status: formData.status === 'Active' ? 1 : 0
       };
 
+      console.log('Submitting plant data:', apiData); // Debug log
       await axiosInstance.post('/master/plants', apiData);
       await fetchPlants();
       handleCloseDialog();
@@ -331,7 +332,7 @@ const Plant = () => {
         shortName: response.data.shortName,
         plantType: response.data.plantType,
         yardStatus: response.data.yardStatus,
-        status: response.data.status || 'Active'
+        status: response.data.status === 1 ? 'Active' : 'Inactive'
       });
       setEditingId(response.data.plantId);
       setOpenDialog(true);

@@ -150,14 +150,14 @@ const OtherExpenses = () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
-      if (filterData.status) params.append('status', filterData.status);
+      if (filterData.status) params.append('status', filterData.status === 'Active' ? 1 : 0);
       
       const response = await axiosInstance.get(`/master/other-expenses${params.toString() ? `?${params.toString()}` : ''}`);
       const transformedData = response.data.map((item, index) => ({
         id: item.otherExpenseId,
         serialNo: index + 1,
         expenseType: item.expenseType,
-        status: item.status || 'Active'
+        status: item.status === 1 ? 'Active' : 'Inactive'
       }));
       setOriginalRows(transformedData);
       setRows(transformedData);
@@ -179,14 +179,14 @@ const OtherExpenses = () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
-      if (newFilterData.status) params.append('status', newFilterData.status);
+      if (newFilterData.status) params.append('status', newFilterData.status === 'Active' ? 1 : 0);
       
       const response = await axiosInstance.get(`/master/other-expenses${params.toString() ? `?${params.toString()}` : ''}`);
       const filteredData = response.data.map((item, index) => ({
         id: item.otherExpenseId,
         serialNo: index + 1,
         expenseType: item.expenseType,
-        status: item.status || 'Active'
+        status: item.status === 1 ? 'Active' : 'Inactive'
       }));
       setOriginalRows(filteredData);
       
@@ -234,9 +234,10 @@ const OtherExpenses = () => {
       const apiData = {
         otherExpenseId: editingId || 0,
         expenseType: formData.expenseType,
-        status: formData.status
+        status: formData.status === 'Active' ? 1 : 0
       };
 
+      console.log('Submitting other expense data:', apiData); // Debug log
       await axiosInstance.post('/master/other-expenses', apiData);
       await fetchOtherExpenses();
       handleCloseDialog();
@@ -269,7 +270,7 @@ const OtherExpenses = () => {
       const response = await axiosInstance.get(`/master/other-expenses/${record.id}`);
       setFormData({
         expenseType: response.data.expenseType,
-        status: response.data.status || 'Active'
+        status: response.data.status === 1 ? 'Active' : 'Inactive'
       });
       setEditingId(response.data.otherExpenseId);
       setOpenDialog(true);

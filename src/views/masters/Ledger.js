@@ -265,7 +265,7 @@ const Ledger = () => {
       const params = new URLSearchParams();
       if (filterData.bucketId) params.append('bucketId', filterData.bucketId);
       if (filterData.expenseTypeId) params.append('expenseTypeId', filterData.expenseTypeId);
-      if (filterData.status) params.append('status', filterData.status);
+      if (filterData.status) params.append('status', filterData.status === 'Active' ? 1 : 0);
       
       const response = await axiosInstance.get(`/master/ledger${params.toString() ? `?${params.toString()}` : ''}`);
       const fetchedData = response.data.map((item, index) => ({
@@ -275,7 +275,7 @@ const Ledger = () => {
         bucketName: item.bucket?.bucketName,
         expenseTypeName: item.expenseType?.expenseTypeName,
         expenseGroupName: item.expenseGroup?.name,
-        status: item.status || 'Active'
+        status: item.status === 1 ? 'Active' : 'Inactive'
       }));
       setOriginalRows(fetchedData);
       setRows(fetchedData);
@@ -295,7 +295,7 @@ const Ledger = () => {
       const params = new URLSearchParams();
       if (newFilterData.bucketId) params.append('bucketId', newFilterData.bucketId);
       if (newFilterData.expenseTypeId) params.append('expenseTypeId', newFilterData.expenseTypeId);
-      if (newFilterData.status) params.append('status', newFilterData.status);
+      if (newFilterData.status) params.append('status', newFilterData.status === 'Active' ? 1 : 0);
       
       const response = await axiosInstance.get(`/master/ledger${params.toString() ? `?${params.toString()}` : ''}`);
       const filteredData = response.data.map((item, index) => ({
@@ -305,11 +305,10 @@ const Ledger = () => {
         bucketName: item.bucket?.bucketName,
         expenseTypeName: item.expenseType?.expenseTypeName,
         expenseGroupName: item.expenseGroup?.name,
-        status: item.status || 'Active'
+        status: item.status === 1 ? 'Active' : 'Inactive'
       }));
       setOriginalRows(filteredData);
       
-      // Apply current search if exists
       if (newFilterData.searchText) {
         const searchLower = newFilterData.searchText.toLowerCase();
         const searchFiltered = filteredData.filter(row => 
@@ -363,9 +362,10 @@ const Ledger = () => {
         expenseGroup: {
           expenseGroupId: parseInt(formData.expenseGroupId)
         },
-        status: formData.status
+        status: formData.status === 'Active' ? 1 : 0
       };
 
+      console.log('Submitting ledger data:', apiData); // Debug log
       await axiosInstance.post('/master/ledger', apiData);
       await fetchLedgers();
       handleCloseDialog();
@@ -401,7 +401,7 @@ const Ledger = () => {
         bucketId: response.data.bucket?.bucketId.toString(),
         expenseTypeId: response.data.expenseType?.expenseTypeId.toString(),
         expenseGroupId: response.data.expenseGroup?.expenseGroupId.toString(),
-        status: response.data.status || 'Active'
+        status: response.data.status === 1 ? 'Active' : 'Inactive'
       });
       setEditingId(response.data.ledgerId);
       setOpenDialog(true);
